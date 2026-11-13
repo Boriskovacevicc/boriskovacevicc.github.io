@@ -45,23 +45,13 @@ Names typed in any game are remembered. The example name used in the checks is *
 
 Riki Tiki still keeps its own save under `rikki-tikki-v2` and still reads `rikki-tikki-v1`. Chess still keeps the game in progress under `boki-chess-v1`. Finished chess games are stored as `boki-chess-results-v1`. The shared name list is `boki-players-v1`. Leave those names as they are.
 
-Those three shared records also go to Firebase (project `boki-games`) so the family’s phones and iPads see the same names and leaderboards. Each device keeps a copy for when the internet is off, and sends it later. A small **Synced** / **Offline** label sits in the corner.
+Those shared records also go to Firebase (project `boki-games`) so the family’s phones and iPads see the same names and leaderboards. Finished chess series are stored too (`boki-chess-series-v1`, collection `chessSeries`). Each device keeps a copy for when the internet is off, and sends it later. A small **Synced** / **Offline** label sits in the corner.
 
-Riki Tiki ranks by wins, then average points. Chess ranks by wins, then win rate. Draws count as games and not as wins.
+Riki Tiki ranks by wins, then average points. Chess ranks by wins, then series wins, then win rate. Draws count as games and not as wins.
 
 In-progress games stay on the device that started them.
 
-### What Boris needs to do in Firebase
-
-The database was created in test mode, which switches itself off after about 30 days. Before that, do these steps or the games will keep working on one device but stop sharing:
-
-1. Open [the Firebase console](https://console.firebase.google.com/) and the project **boki-games**.
-2. In the left menu, click **Build**, then **Authentication**. If you see **Get started**, click it.
-3. Open the **Sign-in method** tab. Click **Anonymous**. Turn the switch on. Click **Save**.
-4. In the left menu, click **Firestore Database**, then the **Rules** tab.
-5. Select all the text in the box, delete it, and paste the whole of the file `firestore.rules` from this project. Click **Publish**.
-
-No passwords. The site signs in quietly in the background. Analytics is not loaded.
+Anonymous sign-in is on, and the live rules match `firestore.rules` in this repo. After a change to that file, publish it from the Firestore rules tab in project **boki-games**. No passwords. The site signs in quietly in the background. Analytics is not loaded.
 
 The web config lives in `shared/store.config.js`. The API key there was checked against the project: a test note was written to Firestore and then deleted.
 
@@ -93,13 +83,25 @@ Piece odds take material from the higher-rated player. The steps are in `chess/b
 | 1400–1799 | queen’s rook, queen’s knight and f-pawn |
 | 1800 and up | queen, queen’s rook, queen’s knight and f-pawn |
 
-You can also tap pieces to take them off before the game starts. Kings stay on. If a rook comes off, that side cannot castle with it. The game starts from that position.
+You can also tap pieces to take them off before the game starts. Kings stay on. If a rook comes off, that side cannot castle with it. The game starts from that position. If colours swap in a series, the missing pieces stay with the same person.
+
+## Piece styles, colours, clocks and series
+
+Each player has a piece button on the start screen. The board can show two styles at once. The choice is saved with that player’s name. The sets are open drawings listed in `chess/LICENSES.md`. Neon and Woodland are recolours of Chessnut.
+
+Under each name is White, Black or Random. Picking White for one person sets Black for the other. Random is decided when the game starts, and a short message says who has White.
+
+The clock can be off, or a base time up to 120 minutes plus an increment up to 60 seconds. Advanced adds a second phase: after a chosen move, that player gets bonus minutes and a new increment. Pause freezes both clocks. Time does not pass while the game is paused or the page is closed, and the remaining time is in the saved game. Running out of time loses, unless the other player does not have enough material to force mate, in which case it is a draw.
+
+Series is first to a score from 1 to 10, in halves. A win is 1, a draw is ½, a loss is 0. Colours swap each game. Hints, missing pieces and the clock stay with the player. The chess leaderboard has a Series column for series wins.
 
 ## Checks
 
 ```bash
 node shared/store.test.mjs
 node chess/test/balance.mjs
+node chess/test/clock.mjs
+node chess/test/series.mjs
 ```
 
 `chess/test/draws.mjs`, `chess/test/mate.mjs` and `chess/test/e2e.mjs` are the chess app’s own checks. Point `BASE` at the chess folder, for example `http://127.0.0.1:8765/chess/`.

@@ -30,7 +30,9 @@ service cloud.firestore {
             || (request.resource.data.chesscom is int
                 && request.resource.data.chesscom >= 1
                 && request.resource.data.chesscom <= 4000))
-        && request.resource.data.keys().size() <= 12;
+        && (!('pieceStyle' in request.resource.data)
+            || request.resource.data.pieceStyle.matches('^[a-z0-9-]{1,32}$'))
+        && request.resource.data.keys().size() <= 14;
       allow delete: if false;
     }
 
@@ -69,7 +71,29 @@ service cloud.firestore {
         && (!('removed' in request.resource.data) || request.resource.data.removed is bool)
         && (!('winner' in request.resource.data) || request.resource.data.winner == null || request.resource.data.winner is string)
         && (!('loser' in request.resource.data) || request.resource.data.loser == null || request.resource.data.loser is string)
-        && request.resource.data.keys().size() <= 16;
+        && (!('seriesId' in request.resource.data) || text(request.resource.data, 'seriesId', 1, 80))
+        && request.resource.data.keys().size() <= 18;
+      allow delete: if false;
+    }
+
+    match /chessSeries/{id} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && id == request.resource.data.id
+        && text(request.resource.data, 'id', 1, 80)
+        && text(request.resource.data, 'nameW', 1, 60)
+        && text(request.resource.data, 'nameB', 1, 60)
+        && text(request.resource.data, 'keyW', 1, 80)
+        && text(request.resource.data, 'keyB', 1, 80)
+        && (request.resource.data.target is int || request.resource.data.target is float)
+        && request.resource.data.target >= 1
+        && request.resource.data.target <= 10
+        && request.resource.data.games is list
+        && request.resource.data.games.size() <= 40
+        && request.resource.data.finished is bool
+        && request.resource.data.drawn is bool
+        && (request.resource.data.winnerKey == null || request.resource.data.winnerKey is string)
+        && request.resource.data.keys().size() <= 24;
       allow delete: if false;
     }
 

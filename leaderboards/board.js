@@ -1,4 +1,4 @@
-import { loadRiki, listChessResults } from "../shared/store.js";
+import { loadRiki, listChessResults, listChessSeries } from "../shared/store.js";
 import { rikiStandings, chessStandings } from "../shared/standings.js";
 import "../shared/status.js";
 
@@ -36,11 +36,12 @@ function render(headers, rows) {
 }
 
 if (kind === "chess") {
-  const rows = chessStandings(await listChessResults());
-  render(["", "Player", "Wins", "Win rate", "Games"], rows.map((row, index) => [
+  const rows = chessStandings(await listChessResults(), await listChessSeries());
+  render(["", "Player", "Wins", "Series", "Win rate", "Games"], rows.map((row, index) => [
     String(index + 1),
     row.name,
     String(row.wins),
+    String(row.seriesWins || 0),
     row.games ? Math.round(row.rate * 100) + "%" : "–",
     String(row.games),
   ]));

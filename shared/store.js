@@ -13,6 +13,7 @@ export const STORE_KEYS = {
   riki: "rikki-tikki-v2",
   rikiV1: "rikki-tikki-v1",
   chessResults: "boki-chess-results-v1",
+  chessSeries: "boki-chess-series-v1",
   meta: "boki-store-meta",
 };
 
@@ -98,6 +99,7 @@ export function mergePlayers(localList, remoteList) {
       ...newer,
       name: preferName(prev.name, player.name),
       chesscom: newer.chesscom || older.chesscom || null,
+      pieceStyle: newer.pieceStyle || older.pieceStyle || undefined,
       id: prev.id || player.id,
     });
   }
@@ -155,6 +157,13 @@ async function runCloudBoot() {
     cacheSet(STORE_KEYS.chessResults, chess);
     stamp("chessResults");
     for (const game of chess) await fb.pushChessResult(game);
+
+    const remoteSeries = await fb.pullChessSeries();
+    const localSeries = Array.isArray(cacheGet(STORE_KEYS.chessSeries)) ? cacheGet(STORE_KEYS.chessSeries) : [];
+    const series = mergeById(localSeries, remoteSeries).map(withStamp);
+    cacheSet(STORE_KEYS.chessSeries, series);
+    stamp("chessSeries");
+    for (const row of series) await fb.pushChessSeries(row);
     fb.note(navigator.onLine ? "synced" : "offline");
   } catch (error) {
     fb.note("offline", error && error.code ? error.code : "sync");
@@ -233,6 +242,10 @@ export async function rememberPlayer(name, patch = {}) {
     const n = Number(patch.chesscom);
     player.chesscom = Number.isFinite(n) && n > 0 ? Math.round(n) : null;
   }
+  if (Object.prototype.hasOwnProperty.call(patch, "pieceStyle")) {
+    const style = String(patch.pieceStyle || "");
+    if (/^[a-z0-9-]{1,32}$/.test(style)) player.pieceStyle = style;
+  }
   await savePlayers(all);
   return player;
 }
@@ -294,6 +307,34 @@ export async function recordChessResult(game) {
   else all.unshift(stamped);
   await writeChess(all);
   return all.filter((g) => g && !g.removed);
+}
+
+export async function listChessSeries() {
+  await cloudBoot();
+  const data = cacheGet(STORE_KEYS.chessSeries);
+  return Array.isArray(data) ? data : [];
+}
+
+export async function saveChessSeries(row) {
+  if (!row || !row.id) return listChessSeries();
+  await cloudBoot();
+  const all = Array.isArray(cacheGet(STORE_KEYS.chessSeries)) ? cacheGet(STORE_KEYS.chessSeries).slice() : [];
+  const stamped = withStamp({ ...row, updatedAt: Date.now() });
+  const index = all.findIndex((item) => item && item.id === row.id);
+  if (index >= 0) all[index] = { ...all[index], ...stamped };
+  else all.unshift(stamped);
+  cacheSet(STORE_KEYS.chessSeries, all);
+  stamp("chessSeries");
+  if (cloudOn()) {
+    try {
+      const fb = await firebaseApi();
+      await fb.pushChessSeries(stamped);
+      fb.note(navigator.onLine ? "synced" : "offline");
+    } catch (e) {
+      try { (await firebaseApi()).note("offline"); } catch (err) { /* ignore */ }
+    }
+  }
+  return all;
 }
 
 export async function removeChessResult(id) {

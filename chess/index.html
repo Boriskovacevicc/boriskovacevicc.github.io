@@ -26,15 +26,29 @@
 
     <div class="players">
       <div class="pl-setup">
-        <div class="pl-head"><span class="dot white"></span>White</div>
-        <input id="nameW" type="text" maxlength="32" placeholder="White player's name" autocomplete="off" autocapitalize="words" spellcheck="false" list="boki-players">
+        <div class="pl-head"><span class="dot" id="dotW"></span><span>Player 1</span>
+          <button type="button" class="style-btn" id="styleBtnW" aria-haspopup="dialog" aria-label="Piece style for player 1"><img id="stylePrevW" src="pieces/sets/cburnett/wN.svg" alt=""></button>
+        </div>
+        <input id="nameW" type="text" maxlength="32" placeholder="Player 1's name" autocomplete="off" autocapitalize="words" spellcheck="false" list="boki-players">
+        <div class="seg colors" id="colorW" role="group" aria-label="Colour for player 1">
+          <button type="button" data-v="w" class="on">White</button>
+          <button type="button" data-v="b">Black</button>
+          <button type="button" data-v="r">Random</button>
+        </div>
         <label class="rate-label">chess.com <input id="rateW" class="rate" inputmode="numeric" maxlength="4" placeholder="rating" autocomplete="off"></label>
         <label class="slider-label">Hints <b id="hintsWVal">3</b></label>
         <input id="hintsW" type="range" min="0" max="30" value="3">
       </div>
       <div class="pl-setup">
-        <div class="pl-head"><span class="dot black"></span>Black</div>
-        <input id="nameB" type="text" maxlength="32" placeholder="Black player's name" autocomplete="off" autocapitalize="words" spellcheck="false" list="boki-players">
+        <div class="pl-head"><span class="dot" id="dotB"></span><span>Player 2</span>
+          <button type="button" class="style-btn" id="styleBtnB" aria-haspopup="dialog" aria-label="Piece style for player 2"><img id="stylePrevB" src="pieces/sets/cburnett/bN.svg" alt=""></button>
+        </div>
+        <input id="nameB" type="text" maxlength="32" placeholder="Player 2's name" autocomplete="off" autocapitalize="words" spellcheck="false" list="boki-players">
+        <div class="seg colors" id="colorB" role="group" aria-label="Colour for player 2">
+          <button type="button" data-v="w">White</button>
+          <button type="button" data-v="b" class="on">Black</button>
+          <button type="button" data-v="r">Random</button>
+        </div>
         <label class="rate-label">chess.com <input id="rateB" class="rate" inputmode="numeric" maxlength="4" placeholder="rating" autocomplete="off"></label>
         <label class="slider-label">Hints <b id="hintsBVal">3</b></label>
         <input id="hintsB" type="range" min="0" max="30" value="3">
@@ -54,6 +68,33 @@
       <p id="oddsLive" class="odds-live"></p>
       <p class="odds-help">Tap a piece to take it off that player.</p>
       <div id="oddsPick"></div>
+    </div>
+
+    <div class="time-box">
+      <div class="time-head"><b>Clock</b><span id="clockSummary">No clock</span></div>
+      <label class="slider-label">Base time <b id="baseVal">Off</b></label>
+      <input id="baseTime" type="range" min="0" max="8" step="1" value="0">
+      <div class="fine">
+        <button type="button" id="baseMinus" aria-label="One minute less">−</button>
+        <button type="button" id="basePlus" aria-label="One minute more">+</button>
+      </div>
+      <label class="slider-label">Increment <b id="incVal">0s</b></label>
+      <input id="incTime" type="range" min="0" max="60" step="1" value="0">
+      <label class="opt small"><span><b>Advanced</b><small>A second time phase, like a tournament</small></span>
+        <input type="checkbox" id="advClock" class="switch"></label>
+      <div id="phase2" class="phase2 hidden">
+        <label class="slider-label">After move <b id="phaseMoveVal">40</b></label>
+        <input id="phaseMove" type="range" min="10" max="80" step="1" value="40">
+        <label class="slider-label">Bonus minutes <b id="phaseBonusVal">30</b></label>
+        <input id="phaseBonus" type="range" min="0" max="60" step="1" value="30">
+        <label class="slider-label">Then increment <b id="phaseIncVal">30s</b></label>
+        <input id="phaseInc" type="range" min="0" max="60" step="1" value="30">
+      </div>
+    </div>
+    <div class="series-box">
+      <label class="slider-label">Series · first to <b id="seriesVal">Off</b></label>
+      <input id="seriesTarget" type="range" min="0" max="10" step="0.5" value="0">
+      <p class="odds-help">Win 1, draw ½, loss 0. Colours swap each game. Off means a single game.</p>
     </div>
 
     <div class="opts">
@@ -86,6 +127,8 @@
     <div class="pcard" id="cardBottom"></div>
   </div>
   <aside id="side">
+    <div id="seriesBanner" class="series-banner hidden"></div>
+    <div id="reveal" class="reveal hidden"></div>
     <div class="status" id="status">White to move</div>
     <div id="oddsNote" class="odds-note hidden"></div>
     <div id="moves"></div>
@@ -94,6 +137,7 @@
       <label class="opt small"><span><b>Auto-flip</b></span><input type="checkbox" id="gFlip" class="switch"></label>
     </div>
     <div class="actions">
+      <button id="pauseBtn" class="btn pause hidden" type="button">Pause</button>
       <button id="undoBtn" class="btn">Undo</button>
       <button id="newBtn" class="btn">New game</button>
     </div>
@@ -103,6 +147,13 @@
 <!-- DIALOGS -->
 <div id="modal" class="modal hidden"><div class="dialog"><h2 id="mTitle"></h2><p id="mText"></p><div class="mbtns" id="mBtns"></div></div></div>
 <div id="ghost"></div>
+<div id="stylePop" class="style-pop hidden" role="dialog" aria-modal="true" aria-labelledby="stylePopTitle">
+  <div class="style-card">
+    <h2 id="stylePopTitle">Piece style</h2>
+    <div id="styleGrid"></div>
+    <button type="button" id="styleClose" class="big primary">Done</button>
+  </div>
+</div>
 <script type="module" src="../shared/status.js"></script>
 <script type="module" src="app.js"></script>
 </body>

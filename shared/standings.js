@@ -25,13 +25,13 @@ export function rikiStandings(matches) {
 }
 
 /** Chess: most wins, then best win rate. Draws count as games and not as wins. */
-export function chessStandings(results) {
+export function chessStandings(results, seriesList) {
   const map = new Map();
   const touch = (name) => {
     const clean = normaliseName(name);
     const key = nameKey(clean);
     if (!key) return null;
-    if (!map.has(key)) map.set(key, { name: clean, wins: 0, games: 0 });
+    if (!map.has(key)) map.set(key, { name: clean, wins: 0, games: 0, seriesWins: 0 });
     return map.get(key);
   };
   for (const game of results || []) {
@@ -46,7 +46,13 @@ export function chessStandings(results) {
       if (game.result === "0-1") black.wins += 1;
     }
   }
+  for (const series of seriesList || []) {
+    if (!series || !series.finished || series.drawn || !series.winnerKey) continue;
+    const winner = series.winnerKey === series.keyW ? series.nameW : series.nameB;
+    const row = touch(winner);
+    if (row) row.seriesWins += 1;
+  }
   return [...map.values()]
     .map((row) => ({ ...row, rate: row.games ? row.wins / row.games : 0 }))
-    .sort((a, b) => b.wins - a.wins || b.rate - a.rate || a.name.localeCompare(b.name));
+    .sort((a, b) => b.wins - a.wins || b.seriesWins - a.seriesWins || b.rate - a.rate || a.name.localeCompare(b.name));
 }
