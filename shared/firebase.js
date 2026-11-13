@@ -157,6 +157,14 @@ export async function pushChessResult(game) {
   await put("chessResults", game.id, game);
 }
 
+export async function pullChessSeries() {
+  return readAll("chessSeries");
+}
+export async function pushChessSeries(row) {
+  if (!row || !row.id) return;
+  await put("chessSeries", row.id, row);
+}
+
 /** Used by the live check. Writes a diagnostics doc and deletes it. */
 export async function probeDiagnostics(id) {
   await ready();

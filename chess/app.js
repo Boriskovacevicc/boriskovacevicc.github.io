@@ -1,6 +1,9 @@
 import { Chess } from './vendor/chess.js';
-import { suggestBalance, buildOddsFen, toggleRemoval, PIECE_CHOICES } from './balance.js';
-import { listPlayers, rememberPlayer, recordChessResult, removeChessResult, nameKey, peekPlayers } from '../shared/store.js';
+import { suggestBalance, buildOddsFen, PIECE_CHOICES } from './balance.js';
+import { PIECE_STYLES, validStyle, pieceFile } from './piecesets.js';
+import { makeClock, applyElapsed, afterMove, pauseClock, resumeClock, arm, formatClock, flagResult, canForceMate } from './clock.js';
+import { setColourChoice, resolveColours, coloursForGame, freshSeries, addSeriesGame, undoSeriesGame, removalsForGame, hintsForGame, namesForGame, stylesForGame, playerKey } from './series.js';
+import { listPlayers, rememberPlayer, recordChessResult, removeChessResult, saveChessSeries, nameKey, peekPlayers } from '../shared/store.js';
 
 /* =========================================================
    Boki Chess — pass-and-play chess with Stockfish eval & hints
@@ -103,6 +106,7 @@ const defaults = () => ({
   names: { w: '', b: '' }, hintsStart: { w: 3, b: 3 }, hints: { w: 3, b: 3 },
   moves: [], evalOn: false, autoFlip: true, flipStyle: 'table', over: false, result: null,
   startFen: null, oddsLabel: '', resultId: null,
+  styles: { w: 'cburnett', b: 'cburnett' }, clock: null, series: null, seriesEntry: null, clockStack: [],
 });
 function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
 function load() { try { return JSON.parse(localStorage.getItem(STORE)); } catch (e) { return null; } }
@@ -112,8 +116,16 @@ const nameOf = (c) => (S.names[c] || (c === 'w' ? 'White' : 'Black'));
 let directory = [];
 let balanceMode = 'hints';
 let removed = [];
+let removedBySeat = { W: [], B: [] };
 let oddsManual = false;
 let focusColor = 'W';
+let colourPick = { W: 'w', B: 'b' };
+let stylePick = { W: 'cburnett', B: 'cburnett' };
+let styleSeat = 'W';
+let activeSeries = null;
+let clockTimer = 0;
+let clockMark = 0;
+const BASE_STEPS = [0, 1, 3, 5, 10, 15, 30, 60, 90, 120];
 
 function updHints() {
   $('hintsWVal').textContent = $('hintsW').value;
@@ -126,6 +138,9 @@ function readRate(color) {
 function ratingFor(name) {
   const found = directory.find((p) => p && p.nameKey === nameKey(name));
   return found && found.chesscom ? String(found.chesscom) : '';
+}
+function profileFor(seat) {
+  return directory.find((p) => p && p.nameKey === nameKey($('name' + seat).value));
 }
 function fillDirectory() {
   const list = $('boki-players');
@@ -152,30 +167,43 @@ function fillDirectory() {
   });
   known.classList.toggle('hidden', directory.length === 0);
 }
+function previewColours() {
+  return resolveColours(colourPick, 0);
+}
+function removalsNow() {
+  const colours = previewColours();
+  return ['W', 'B'].flatMap((seat) => (removedBySeat[seat] || []).map((id) => ({ color: colours[seat], id })));
+}
 function renderOdds() {
+  removed = removalsNow();
+  const colours = previewColours();
   const box = $('oddsPick');
   box.replaceChildren();
-  for (const color of ['w', 'b']) {
+  for (const seat of ['W', 'B']) {
+    const color = colours[seat];
+    const who = $('name' + seat).value.trim() || (seat === 'W' ? 'Player 1' : 'Player 2');
     const side = document.createElement('div');
     side.className = 'odds-side';
     const title = document.createElement('h3');
-    title.textContent = color === 'w' ? 'White' : 'Black';
+    title.textContent = who;
     const pieces = document.createElement('div');
     pieces.className = 'odds-pieces';
     PIECE_CHOICES.forEach((choice) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      const off = removed.some((item) => item.color === color && item.id === choice.id);
+      const off = (removedBySeat[seat] || []).includes(choice.id);
       btn.classList.toggle('off', off);
       btn.setAttribute('aria-pressed', off ? 'true' : 'false');
-      btn.setAttribute('aria-label', (off ? 'Put back ' : 'Remove ') + (color === 'w' ? 'White ' : 'Black ') + choice.word);
+      btn.setAttribute('aria-label', (off ? 'Put back ' : 'Remove ') + who + ' ' + choice.word);
       const img = document.createElement('img');
-      img.src = `pieces/${color}${choice.glyph}.svg`;
+      img.src = pieceFile(stylePick[seat], color, choice.glyph);
       img.alt = '';
       btn.appendChild(img);
       btn.onclick = () => {
         oddsManual = true;
-        removed = toggleRemoval(removed, color, choice.id);
+        const ids = new Set(removedBySeat[seat] || []);
+        if (ids.has(choice.id)) ids.delete(choice.id); else ids.add(choice.id);
+        removedBySeat = { ...removedBySeat, [seat]: [...ids] };
         renderOdds();
       };
       pieces.appendChild(btn);
@@ -204,7 +232,11 @@ function updateBalance() {
   });
   $('balanceLine').textContent = suggestion.line;
   markMode();
-  if (!oddsManual) removed = suggestion.removed.map((item) => ({ ...item }));
+  if (!oddsManual) {
+    const strongerSeat = white >= black ? 'W' : 'B';
+    const ids = balanceMode === 'hints' ? [] : suggestion.removed.map((item) => item.id);
+    removedBySeat = { W: [], B: [], [strongerSeat]: ids };
+  }
   if (suggestion.hints.w != null) {
     $('hintsW').value = String(suggestion.hints.w);
     $('hintsB').value = String(suggestion.hints.b);
@@ -216,6 +248,11 @@ function onNameInput(color) {
   focusColor = color;
   const rate = $('rate' + color);
   if (!rate.dataset.dirty) rate.value = ratingFor($('name' + color).value);
+  const found = profileFor(color);
+  if (found && found.pieceStyle && !$('styleBtn' + color).dataset.dirty) {
+    stylePick[color] = validStyle(found.pieceStyle);
+    paintStyles();
+  }
   updateBalance();
 }
 async function rememberSetupNames() {
@@ -223,7 +260,7 @@ async function rememberSetupNames() {
   for (const color of ['W', 'B']) {
     const name = $('name' + color).value.trim();
     if (!name) continue;
-    tasks.push(rememberPlayer(name, { chesscom: readRate(color) || null }));
+    tasks.push(rememberPlayer(name, { chesscom: readRate(color) || null, pieceStyle: stylePick[color] }));
   }
   if (!tasks.length) return;
   directory = [];
@@ -236,7 +273,9 @@ function initSetup() {
   const prev = saved || defaults();
   balanceMode = 'hints';
   oddsManual = false;
+  removedBySeat = { W: [], B: [] };
   removed = [];
+  activeSeries = null;
   $('nameW').value = prev.names?.w || ''; $('nameB').value = prev.names?.b || '';
   $('rateW').value = ''; $('rateB').value = '';
   $('rateW').dataset.dirty = ''; $('rateB').dataset.dirty = '';
@@ -251,19 +290,24 @@ function initSetup() {
   $('resumeBtn').classList.toggle('hidden', !(saved && saved.moves && saved.moves.length && !saved.over));
   $('resumeBtn').onclick = () => startGame(saved);
   $('startBtn').onclick = () => {
-    const st = defaults();
-    st.names = { w: $('nameW').value.trim(), b: $('nameB').value.trim() };
-    st.hintsStart = { w: +$('hintsW').value, b: +$('hintsB').value };
-    st.hints = { ...st.hintsStart };
-    st.evalOn = $('optEval').checked; st.autoFlip = $('optFlip').checked;
-    st.flipStyle = $('flipStyle').querySelector('.on').dataset.v;
-    if (removed.length) {
-      const built = buildOddsFen(removed);
-      st.startFen = built.fen;
-      st.oddsLabel = built.label;
-    }
     rememberSetupNames();
+    const colours = resolveColours(colourPick, Math.random());
+    const target = Number($('seriesTarget').value) || 0;
+    const session = target >= 1 ? freshSeries({
+      target,
+      nameW: $('nameW').value.trim(),
+      nameB: $('nameB').value.trim(),
+      firstColours: { W: colours.W, B: colours.B },
+      hints: { W: +$('hintsW').value, B: +$('hintsB').value },
+      removedBySeat,
+      styles: { ...stylePick },
+      control: readControl(),
+    }) : null;
+    activeSeries = session;
+    const st = stateForGame(session, colours, 0);
+    st.reveal = colours.random ? `${st.names.w || 'White'} plays White. ${st.names.b || 'Black'} plays Black.` : '';
     startGame(st);
+    if (st.reveal) showReveal(st.reveal);
   };
   updateBalance();
 }
@@ -273,10 +317,49 @@ function setFlipStyle(v) {
     ? 'Sitting across a table: the pieces turn to face whoever is to move'
     : 'Handing the iPad over: the whole board turns round';
 }
-function showSetup() { engine.cancel(); $('game').classList.add('hidden'); $('setup').classList.remove('hidden'); initSetup(); }
+function showSetup() { stopTicker(); engine.cancel(); $('game').classList.add('hidden'); $('setup').classList.remove('hidden'); initSetup(); }
 
 /* ---------------- Game lifecycle ---------------- */
+function readControl() {
+  return {
+    baseMin: Number($('baseTime').dataset.min || 0),
+    incSec: Number($('incTime').value) || 0,
+    advanced: $('advClock').checked,
+    phaseMove: Number($('phaseMove').value) || 40,
+    phaseBonusMin: Number($('phaseBonus').value) || 0,
+    phaseIncSec: Number($('phaseInc').value) || 0,
+  };
+}
+function stateForGame(series, colours, gameIndex) {
+  const st = defaults();
+  const use = series ? coloursForGame(series.firstColours, gameIndex) : colours;
+  const pack = series || {
+    nameW: $('nameW').value.trim(), nameB: $('nameB').value.trim(),
+    hints: { W: +$('hintsW').value, B: +$('hintsB').value },
+    removedBySeat, styles: { ...stylePick }, control: readControl(),
+  };
+  st.names = namesForGame(pack, use);
+  st.hintsStart = hintsForGame(pack, use);
+  st.hints = { ...st.hintsStart };
+  st.styles = stylesForGame(pack, use);
+  st.evalOn = $('optEval').checked;
+  st.autoFlip = $('optFlip').checked;
+  st.flipStyle = $('flipStyle').querySelector('.on').dataset.v;
+  const gone = removalsForGame(pack, use);
+  if (gone.length) {
+    const built = buildOddsFen(gone);
+    st.startFen = built.fen;
+    st.oddsLabel = built.label;
+  }
+  st.clock = makeClock(pack.control);
+  if (st.clock) st.clock = arm(st.clock, 'w');
+  st.series = series;
+  st.seriesGame = gameIndex;
+  st.colourNote = use;
+  return st;
+}
 function startGame(st) {
+  stopTicker();
   S = Object.assign(defaults(), st);
   try { chess = S.startFen ? new Chess(S.startFen) : new Chess(); }
   catch (e) { chess = new Chess(); S.startFen = null; S.oddsLabel = ''; }
@@ -285,11 +368,13 @@ function startGame(st) {
   selected = null; hint = null; hintBusy = false; lastEval = null; animateFrom = null;
   shownTurn = chess.turn();
   engine.newGame();
-  if (S.evalOn || S.hints.w + S.hints.b > 0) engine.start(); // warm up the engine
+  if (S.evalOn || S.hints.w + S.hints.b > 0) engine.start();
   $('setup').classList.add('hidden'); $('game').classList.remove('hidden');
   $('gEval').checked = S.evalOn; $('gFlip').checked = S.autoFlip;
+  if (S.clock && !S.over) S.clock = { ...S.clock, running: !S.clock.paused && !S.clock.flagged, active: S.clock.active || chess.turn() };
   layout(); applyOrientation(true); render(); save();
   afterPositionChange(false);
+  startTicker();
   if (S.over) showGameOver();
 }
 
@@ -309,21 +394,45 @@ function doMove(from, to, promotion) {
   try { mv = chess.move({ from, to, promotion }); } catch (e) { return false; }
   if (!mv) return false;
   engine.cancel(); hintBusy = false;
+  if (S.clock && clockMark) S.clock = applyElapsed(S.clock, performance.now() - clockMark);
+  if (S.clock) S.clockStack = (S.clockStack || []).concat([S.clock]);
   S.moves.push({ from: mv.from, to: mv.to, promotion: mv.promotion });
+  if (S.clock) S.clock = afterMove(S.clock, mv.color, S.moves.length);
   animateFrom = skipSlide ? {} : { from: mv.from, to: mv.to };
   if (mv.flags.includes('k')) animateFrom.rook = mv.color === 'w' ? ['h1', 'f1'] : ['h8', 'f8'];
   if (mv.flags.includes('q')) animateFrom.rook = mv.color === 'w' ? ['a1', 'd1'] : ['a8', 'd8'];
   afterPositionChange(true);
+  startTicker();
   if (S.over) setTimeout(showGameOver, 650);
   return true;
 }
 
 function checkGameOver() {
+  if (S.clock && S.clock.flagged && !chess.isGameOver()) {
+    const opp = S.clock.flagged === 'w' ? 'b' : 'w';
+    const types = [];
+    for (const row of chess.board()) for (const p of row) if (p && p.color === opp) types.push(p.type);
+    const outcome = flagResult(S.clock.flagged, canForceMate(types));
+    S.over = true;
+    const winner = outcome.winner;
+    S.result = outcome.kind === 'draw'
+      ? { score: '½-½', title: 'Draw by time', text: `${nameOf(S.clock.flagged)} ran out of time, and ${nameOf(opp)} does not have enough material to mate.` }
+      : { score: outcome.score, title: `${nameOf(winner)} wins on time`, text: `${nameOf(S.clock.flagged)} ran out of time.` };
+    commitResult();
+    return;
+  }
   S.over = chess.isGameOver();
   if (!S.over) {
     if (S.resultId) {
       const id = S.resultId;
+      const snapshot = S.seriesEntry;
       S.resultId = null;
+      S.seriesEntry = null;
+      if (S.series && snapshot) {
+        S.series = undoSeriesGame(S.series, snapshot);
+        activeSeries = S.series;
+        saveChessSeries(S.series).catch(() => {});
+      }
       removeChessResult(id).catch(() => {});
     }
     S.result = null;
@@ -340,19 +449,30 @@ function checkGameOver() {
     else if (chess.isDrawByFiftyMoves()) why = '50-move rule';
     S.result = { score: '½-½', title: 'Draw', text: `${why}. Nobody wins this one.` };
   }
-  if (!S.resultId) {
-    S.resultId = 'cg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    const draw = S.result.score === '½-½';
-    const white = S.names.w || 'White';
-    const black = S.names.b || 'Black';
-    recordChessResult({
-      id: S.resultId,
-      date: new Date().toISOString(),
-      white, black,
-      result: draw ? '1/2-1/2' : S.result.score,
-      winner: draw ? null : (S.result.score === '1-0' ? white : black),
-      loser: draw ? null : (S.result.score === '1-0' ? black : white),
-    }).catch(() => {});
+  commitResult();
+}
+function commitResult() {
+  if (!S.result || S.resultId) return;
+  stopTicker();
+  S.resultId = 'cg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const draw = S.result.score === '½-½';
+  const white = S.names.w || 'White';
+  const black = S.names.b || 'Black';
+  const game = {
+    id: S.resultId,
+    date: new Date().toISOString(),
+    white, black,
+    result: draw ? '1/2-1/2' : S.result.score,
+    winner: draw ? null : (S.result.score === '1-0' ? white : black),
+    loser: draw ? null : (S.result.score === '1-0' ? black : white),
+    seriesId: S.series ? S.series.id : null,
+  };
+  recordChessResult(game).catch(() => {});
+  if (S.series && !S.seriesEntry) {
+    S.seriesEntry = { id: game.id, result: game.result, whiteKey: playerKey(white, 'player-1'), blackKey: playerKey(black, 'player-2') };
+    S.series = addSeriesGame(S.series, S.seriesEntry);
+    activeSeries = S.series;
+    saveChessSeries(S.series).catch(() => {});
   }
 }
 
@@ -390,6 +510,21 @@ function render() {
     note.classList.toggle('hidden', !(S && S.oddsLabel));
   }
   $('undoBtn').disabled = S.moves.length === 0;
+  const pause = $('pauseBtn');
+  if (pause) {
+    const on = !!(S && S.clock);
+    pause.classList.toggle('hidden', !on);
+    pause.textContent = S && S.clock && S.clock.paused ? 'Resume' : 'Pause';
+    pause.disabled = !!(S && S.clock && (S.clock.flagged || S.over));
+  }
+  const banner = $('seriesBanner');
+  if (banner) {
+    if (S && S.series) {
+      banner.hidden = false;
+      banner.classList.remove('hidden');
+      banner.textContent = `${S.series.nameW} ${S.series.scores[S.series.keyW]} – ${S.series.scores[S.series.keyB]} ${S.series.nameB} · first to ${S.series.target}`;
+    } else banner.classList.add('hidden');
+  }
 }
 function renderBoard() {
   const box = $('squares');
@@ -408,7 +543,7 @@ function renderBoard() {
     html += `<div class="${cls.join(' ')}" data-sq="${sq}">`;
     if (f === 0) html += `<span class="co r">${8 - r}</span>`;
     if (r === 7) html += `<span class="co f">${FILES[f]}</span>`;
-    if (p) html += `<div class="pc" data-p="${p.color}${p.type}"><img src="pieces/${p.color}${p.type.toUpperCase()}.svg" alt="${p.color === 'w' ? 'white' : 'black'} ${NAMES[p.type]}" draggable="false"></div>`;
+    if (p) html += `<div class="pc" data-p="${p.color}${p.type}"><img src="${pieceFile(S.styles && S.styles[p.color], p.color, p.type)}" alt="${p.color === 'w' ? 'white' : 'black'} ${NAMES[p.type]}" draggable="false"></div>`;
     if (targets.has(sq)) html += `<div class="mv${(p || targets.get(sq).flags.includes('e')) ? ' cap' : ''}"></div>`;
     html += '</div>';
   }
@@ -472,11 +607,13 @@ function renderCards() {
     const el = $(id); const opp = c === 'w' ? 'b' : 'w';
     const myTurn = !S.over && chess.turn() === c;
     const adv = mat[c] - mat[opp];
-    const caps = lost[opp].map((t) => `<img src="pieces/${opp}${t.toUpperCase()}.svg" alt="">`).join('');
+    const caps = lost[opp].map((t) => `<img src="${pieceFile(S.styles && S.styles[opp], opp, t)}" alt="">`).join('');
+    const clk = S.clock ? `<div class="clk${S.clock.flagged === c ? ' flag' : ''}${S.clock.remaining[c] <= 20000 ? ' low' : ''}${S.clock.active === c && S.clock.running && !S.clock.paused ? ' run' : ''}">${formatClock(S.clock.remaining[c])}</div>` : '';
     const canHint = myTurn && S.hints[c] > 0 && !hintBusy && !hint;
     el.className = 'pcard' + (myTurn ? ' turn' : '') + (S.flipStyle === 'table' && S.autoFlip && c === 'b' && id === 'cardTop' ? ' rot' : '');
     el.innerHTML = `<div class="who"><div class="nm"><span class="dot ${c === 'w' ? 'white' : 'black'}"></span><span>${esc(nameOf(c))}</span>${myTurn ? '<span class="tomove">TO MOVE</span>' : ''}</div>
       <div class="caps">${caps}${adv > 0 ? `<span class="adv">+${adv}</span>` : ''}</div></div>
+      ${clk}
       <button class="hintbtn${hintBusy && myTurn ? ' busy' : ''}" data-c="${c}" ${canHint ? '' : 'disabled'} aria-label="Hint">${BULB}<span>${hintBusy && myTurn ? 'Thinking…' : 'Hint'}</span><span class="cnt">${S.hints[c]}</span></button>`;
     el.querySelector('.hintbtn').onclick = () => requestHint(c);
   }
@@ -613,7 +750,7 @@ function askPromotion(from, to) {
   pendingPromo = { from, to };
   const c = chess.turn(); const el = $('promo');
   el.innerHTML = `<div class="pbox${orient().pieceRot ? ' flip' : ''}">${['q', 'r', 'b', 'n'].map((t) =>
-    `<button data-t="${t}" aria-label="${NAMES[t]}"><img src="pieces/${c}${t.toUpperCase()}.svg" alt=""></button>`).join('')}
+    `<button data-t="${t}" aria-label="${NAMES[t]}"><img src="${pieceFile(S.styles && S.styles[c], c, t)}" alt=""></button>`).join('')}
     <button class="pcancel" data-t="x">Cancel</button></div>`;
   el.classList.remove('hidden');
   el.querySelectorAll('button').forEach((b) => (b.onclick = (ev) => {
@@ -636,16 +773,41 @@ function modal(title, text, buttons) {
   $('modal').classList.remove('hidden');
 }
 function showGameOver() {
-  if (!S.over) return;
-  modal(S.result.title, `${S.result.text}  Result: ${S.result.score}`, [
-    { label: 'Look at board' }, { label: 'Undo last move', fn: undo },
-    { label: 'New game', cls: 'primary', fn: showSetup }]);
+  if (!S.over || !S.result) return;
+  stopTicker();
+  const buttons = [{ label: 'Look at board' }, { label: 'Undo last move', fn: undo }];
+  if (S.series && S.series.finished) {
+    const who = S.series.winnerKey === S.series.keyW ? S.series.nameW : S.series.nameB;
+    const title = S.series.drawn ? 'The series is a draw' : `${who} wins the series`;
+    const line = `${S.series.nameW} ${S.series.scores[S.series.keyW]} – ${S.series.scores[S.series.keyB]} ${S.series.nameB}. ${S.result.text}`;
+    modal(title, line, buttons.concat([{ label: 'New series', cls: 'primary', fn: showSetup }]));
+    return;
+  }
+  if (S.series) buttons.push({ label: 'Next game', cls: 'primary', fn: nextSeriesGame });
+  else buttons.push({ label: 'New game', cls: 'primary', fn: showSetup });
+  modal(S.result.title, `${S.result.text}  Result: ${S.result.score}`, buttons);
+}
+function nextSeriesGame() {
+  const series = S.series;
+  const st = stateForGame(series, series.firstColours, series.games.length);
+  const reveal = `${st.names.w || 'White'} has White. ${st.names.b || 'Black'} has Black.`;
+  startGame(st);
+  if (S.clock) S.clock = pauseClock(S.clock);
+  stopTicker();
+  modal('Next game', reveal, [{ label: "Let's play", cls: 'primary', fn: () => { if (S.clock) { S.clock = resumeClock(S.clock); startTicker(); render(); } } }]);
+}
+function showReveal(text) {
+  if (S.clock) S.clock = pauseClock(S.clock);
+  stopTicker();
+  modal('Colours', text, [{ label: "Let's play", cls: 'primary', fn: () => { if (S.clock) { S.clock = resumeClock(S.clock); startTicker(); render(); } } }]);
 }
 function undo() {
   if (!S.moves.length) return;
   engine.cancel(); hintBusy = false;
   chess.undo(); S.moves.pop(); lastEval = null;
+  if (S.clockStack && S.clockStack.length) S.clock = S.clockStack.pop();
   afterPositionChange(true);
+  startTicker();
 }
 
 /* ---------------- Wire up ---------------- */
@@ -687,6 +849,147 @@ function wireSetup() {
       updateBalance();
     });
   });
+  for (const seat of ['W', 'B']) {
+    $('color' + seat).querySelectorAll('button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        colourPick = setColourChoice(colourPick, seat, btn.dataset.v);
+        paintColours();
+        renderOdds();
+      });
+    });
+    $('styleBtn' + seat).addEventListener('click', () => openStyles(seat));
+  }
+  $('styleClose').addEventListener('click', () => $('stylePop').classList.add('hidden'));
+  $('stylePop').addEventListener('click', (e) => { if (e.target === $('stylePop')) $('stylePop').classList.add('hidden'); });
+  $('baseTime').addEventListener('input', () => setBase(BASE_STEPS[+$('baseTime').value]));
+  $('baseMinus').addEventListener('click', () => setBase((Number($('baseTime').dataset.min) || 0) - 1));
+  $('basePlus').addEventListener('click', () => setBase((Number($('baseTime').dataset.min) || 0) + 1));
+  $('incTime').addEventListener('input', paintClock);
+  $('advClock').addEventListener('change', () => { $('phase2').classList.toggle('hidden', !$('advClock').checked); paintClock(); });
+  $('phaseMove').addEventListener('input', paintClock);
+  $('phaseBonus').addEventListener('input', paintClock);
+  $('phaseInc').addEventListener('input', paintClock);
+  $('seriesTarget').addEventListener('input', paintSeries);
+  $('pauseBtn').addEventListener('click', togglePause);
+  document.addEventListener('visibilitychange', onHide);
+  setBase(0);
+  paintClock();
+  paintSeries();
+  paintColours();
+  paintStyles();
+}
+function paintColours() {
+  for (const seat of ['W', 'B']) {
+    $('color' + seat).querySelectorAll('button').forEach((btn) => btn.classList.toggle('on', btn.dataset.v === colourPick[seat]));
+    const dot = $('dot' + seat);
+    dot.className = 'dot' + (colourPick[seat] === 'b' ? ' black' : colourPick[seat] === 'r' ? ' rand' : ' white');
+  }
+}
+function paintStyles() {
+  $('stylePrevW').src = pieceFile(stylePick.W, 'w', 'n');
+  $('stylePrevB').src = pieceFile(stylePick.B, 'b', 'n');
+}
+function openStyles(seat) {
+  styleSeat = seat;
+  $('styleBtn' + seat).dataset.dirty = '1';
+  const grid = $('styleGrid');
+  grid.replaceChildren();
+  const who = $('name' + seat).value.trim() || (seat === 'W' ? 'Player 1' : 'Player 2');
+  $('stylePopTitle').textContent = who + '’s pieces';
+  PIECE_STYLES.forEach((style) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'style-opt' + (stylePick[seat] === style.id ? ' on' : '');
+    const name = document.createElement('span');
+    name.textContent = style.name;
+    const row = document.createElement('span');
+    row.className = 'preview';
+    for (const type of ['k', 'q', 'n', 'p']) {
+      const img = document.createElement('img');
+      img.src = pieceFile(style.id, 'w', type);
+      img.alt = '';
+      row.appendChild(img);
+    }
+    btn.append(name, row);
+    btn.addEventListener('click', () => {
+      stylePick[seat] = style.id;
+      paintStyles();
+      renderOdds();
+      const typed = $('name' + seat).value.trim();
+      if (typed) rememberPlayer(typed, { pieceStyle: style.id }).catch(() => {});
+      openStyles(seat);
+    });
+    grid.appendChild(btn);
+  });
+  $('stylePop').classList.remove('hidden');
+}
+function setBase(min) {
+  const next = Math.max(0, Math.min(120, Math.round(min)));
+  $('baseTime').dataset.min = String(next);
+  let best = 0;
+  let dist = 999;
+  BASE_STEPS.forEach((step, i) => { const d = Math.abs(step - next); if (d < dist) { dist = d; best = i; } });
+  $('baseTime').value = String(best);
+  paintClock();
+}
+function paintClock() {
+  const min = Number($('baseTime').dataset.min || 0);
+  $('baseVal').textContent = min ? min + ' min' : 'Off';
+  $('incVal').textContent = $('incTime').value + 's';
+  $('phaseMoveVal').textContent = $('phaseMove').value;
+  $('phaseBonusVal').textContent = $('phaseBonus').value;
+  $('phaseIncVal').textContent = $('phaseInc').value + 's';
+  const inc = $('incTime').value;
+  $('clockSummary').textContent = min ? `${min} min + ${inc}s` + ($('advClock').checked ? ' · two phases' : '') : 'No clock';
+}
+function paintSeries() {
+  const n = Number($('seriesTarget').value);
+  $('seriesVal').textContent = n ? String(n) : 'Off';
+}
+function togglePause() {
+  if (!S || !S.clock || S.over) return;
+  if (S.clock.paused) {
+    S.clock = resumeClock(S.clock);
+    startTicker();
+  } else {
+    if (clockMark) S.clock = applyElapsed(S.clock, performance.now() - clockMark);
+    S.clock = pauseClock(S.clock);
+    stopTicker();
+  }
+  render();
+  save();
+}
+function startTicker() {
+  stopTicker();
+  if (!S || !S.clock || S.over || S.clock.paused || S.clock.flagged || document.hidden) return;
+  clockMark = performance.now();
+  clockTimer = setInterval(() => {
+    const now = performance.now();
+    S.clock = applyElapsed(S.clock, now - clockMark);
+    clockMark = now;
+    if (S.clock.flagged) {
+      stopTicker();
+      checkGameOver();
+      render();
+      save();
+      showGameOver();
+      return;
+    }
+    render();
+  }, 250);
+}
+function stopTicker() {
+  if (clockTimer) clearInterval(clockTimer);
+  clockTimer = 0;
+  clockMark = 0;
+}
+function onHide() {
+  if (!S || !S.clock) return;
+  if (document.hidden) {
+    if (clockMark) S.clock = applyElapsed(S.clock, performance.now() - clockMark);
+    stopTicker();
+    save();
+  } else startTicker();
 }
 wireSetup();
 async function boot() {
