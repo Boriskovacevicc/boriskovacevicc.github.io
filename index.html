@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="Games for Boki and the family." />
+  <meta name="theme-color" content="#dfc8f2" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Boki Games" />
+  <title>Boki Games</title>
+  <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png" />
+  <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="shared/fonts.css" />
+  <link rel="stylesheet" href="shared/sky.css" />
+  <link rel="stylesheet" href="shared/status.css" />
+  <style>
+    :root {
+      --ink: #2b2144;
+      --safe-t: env(safe-area-inset-top, 0px);
+      --safe-b: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      min-height: 100dvh;
+      color: var(--ink);
+      font-family: "Baloo 2", system-ui, sans-serif;
+    }
+    .stage {
+      position: relative;
+      z-index: 1;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding:
+        calc(18px + var(--safe-t))
+        20px
+        calc(28px + var(--safe-b));
+    }
+    h1 {
+      margin: clamp(78px, 16vh, 150px) 0 0;
+      font-weight: 800;
+      font-size: clamp(42px, 9vw, 84px);
+      line-height: 0.95;
+      letter-spacing: -0.02em;
+      text-align: center;
+      color: #fff;
+      text-shadow:
+        0 2px 0 rgba(92, 54, 140, 0.18),
+        0 10px 28px rgba(74, 42, 120, 0.28);
+    }
+    main {
+      flex: 1;
+      width: min(440px, 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px 0 6vh;
+    }
+    .stack { width: min(100%, 420px); display: flex; flex-direction: column; gap: 14px; margin-inline: auto; }
+    .glass-btn, .glass-list {
+      background: rgba(255, 255, 255, 0.46);
+      -webkit-backdrop-filter: blur(18px) saturate(1.35);
+      backdrop-filter: blur(18px) saturate(1.35);
+      border: 1px solid rgba(255, 255, 255, 0.74);
+      box-shadow:
+        0 14px 34px rgba(72, 40, 112, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.82);
+    }
+    .glass-btn {
+      width: 100%;
+      min-height: 72px;
+      border-radius: 28px;
+      color: var(--ink);
+      font: 800 clamp(28px, 6vw, 36px)/1 "Baloo 2", system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .glass-btn:focus-visible, .item:focus-visible {
+      outline: 3px solid #fff;
+      outline-offset: 3px;
+    }
+    .chev {
+      width: 12px;
+      height: 12px;
+      border-right: 3px solid var(--ink);
+      border-bottom: 3px solid var(--ink);
+      transform: rotate(45deg) translateY(-2px);
+      transition: transform .2s ease;
+    }
+    .glass-btn[aria-expanded="true"] .chev { transform: rotate(225deg) translateY(-2px); }
+    .fold {
+      display: grid;
+      grid-template-rows: 0fr;
+      opacity: 0;
+      transition: grid-template-rows .22s ease, opacity .22s ease, margin .22s ease;
+      margin-top: 0;
+    }
+    .fold.open { grid-template-rows: 1fr; opacity: 1; margin-top: 10px; }
+    .fold-inner { min-height: 0; overflow: hidden; }
+    .glass-list { border-radius: 26px; padding: 8px; }
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 64px;
+      padding: 8px 12px;
+      border-radius: 18px;
+      text-decoration: none;
+      color: var(--ink);
+    }
+    .item:hover, .item:focus-visible { background: rgba(255, 255, 255, 0.45); }
+    .item img, .item .emoji {
+      width: 48px;
+      height: 48px;
+      flex: none;
+      border-radius: 14px;
+      object-fit: cover;
+      display: grid;
+      place-items: center;
+      font-size: 28px;
+    }
+    .item strong { display: block; font-size: 20px; font-weight: 800; line-height: 1.1; }
+    .item small { display: block; margin-top: 2px; font-size: 14px; font-weight: 600; color: #53486a; }
+    @media (min-aspect-ratio: 1/1) and (max-height: 820px) {
+      h1 { margin-top: 30vh; }
+    }
+    @media (min-aspect-ratio: 1/1) and (min-height: 821px) {
+      h1 { margin-top: 18vh; }
+    }
+    @media (max-width: 520px) {
+      main { width: min(340px, 90vw); }
+    }
+    @media (max-width: 380px) {
+      h1 { font-size: 40px; }
+      .glass-btn { min-height: 64px; border-radius: 24px; }
+      .item strong { font-size: 18px; }
+    }
+    @media (min-width: 900px) and (min-height: 700px) {
+      .stack { gap: 18px; }
+      .glass-btn { min-height: 84px; border-radius: 32px; }
+    }
+    @media (max-height: 520px) {
+      h1 { margin-top: 4px; font-size: 36px; }
+      main { padding-top: 8px; padding-bottom: 8px; }
+      .glass-btn { min-height: 56px; font-size: 26px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .fold, .chev { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sky" aria-hidden="true"><div class="sky-art"></div></div>
+  <div class="stage">
+    <header>
+      <h1>Boki Games</h1>
+    </header>
+    <main>
+      <div class="stack" id="stack">
+        <div class="menu">
+          <button type="button" id="games-btn" class="glass-btn" aria-expanded="false" aria-controls="games-panel">
+            Games <span class="chev" aria-hidden="true"></span>
+          </button>
+          <div id="games-panel" class="fold" role="region" aria-label="Games" inert>
+            <div class="fold-inner">
+              <div class="glass-list" id="games-list"></div>
+            </div>
+          </div>
+        </div>
+        <div class="menu">
+          <button type="button" id="boards-btn" class="glass-btn" aria-expanded="false" aria-controls="boards-panel">
+            Leaderboards <span class="chev" aria-hidden="true"></span>
+          </button>
+          <div id="boards-panel" class="fold" role="region" aria-label="Leaderboards" inert>
+            <div class="fold-inner">
+              <div class="glass-list" id="boards-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="games.js"></script>
+  <script type="module" src="hub.js"></script>
+</body>
+</html>
