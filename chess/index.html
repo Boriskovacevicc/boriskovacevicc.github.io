@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Boki Chess">
+<meta name="theme-color" content="#16181d">
+<title>Boki Chess</title>
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- SETUP -->
+<section id="setup" class="screen">
+  <div class="setup-card">
+    <a class="hub-link" href="../">← Games</a>
+    <div class="logo"><img src="pieces/wN.svg" alt=""><h1>Boki Chess</h1></div>
+    <p class="sub">Over-the-board chess for two, with Stockfish hints</p>
+
+    <div class="players">
+      <div class="pl-setup">
+        <div class="pl-head"><span class="dot white"></span>White</div>
+        <input id="nameW" type="text" maxlength="18" placeholder="White player's name" autocomplete="off" autocapitalize="words" spellcheck="false">
+        <label class="slider-label">Hints <b id="hintsWVal">3</b></label>
+        <input id="hintsW" type="range" min="0" max="10" value="3">
+      </div>
+      <div class="pl-setup">
+        <div class="pl-head"><span class="dot black"></span>Black</div>
+        <input id="nameB" type="text" maxlength="18" placeholder="Black player's name" autocomplete="off" autocapitalize="words" spellcheck="false">
+        <label class="slider-label">Hints <b id="hintsBVal">3</b></label>
+        <input id="hintsB" type="range" min="0" max="10" value="3">
+      </div>
+    </div>
+
+    <div class="opts">
+      <label class="opt"><span><b>Evaluation bar</b><small>Live Stockfish score beside the board</small></span>
+        <input type="checkbox" id="optEval" class="switch"></label>
+      <label class="opt"><span><b>Auto-flip each move</b><small>Turn things round for whoever is to move</small></span>
+        <input type="checkbox" id="optFlip" class="switch" checked></label>
+      <div class="opt seg-row"><span><b>Flip style</b><small id="flipStyleHelp">Sitting across a table: pieces turn to face the player to move</small></span>
+        <div class="seg" id="flipStyle">
+          <button data-v="table" class="on">Across table</button>
+          <button data-v="pass">Pass iPad</button>
+        </div>
+      </div>
+    </div>
+
+    <button id="startBtn" class="big primary">Start game</button>
+    <button id="resumeBtn" class="big ghost hidden">Resume saved game</button>
+    <p class="credits">Engine: Stockfish 19 lite (stockfish.js, GPLv3). Rules: chess.js (BSD-2). Pieces: Colin M.L. Burnett (GPLv2+). <a href="LICENSES.md" target="_blank">Licences</a></p>
+  </div>
+</section>
+
+<!-- GAME -->
+<section id="game" class="screen hidden">
+  <div id="play">
+    <div class="pcard" id="cardTop"></div>
+    <div id="stage">
+      <div id="evalbar" class="hidden"><div id="evalfill"></div><div id="evaltext">0.0</div></div>
+      <div id="board"><div id="squares"></div><svg id="arrows" viewBox="0 0 8 8"></svg><div id="promo" class="hidden"></div></div>
+    </div>
+    <div class="pcard" id="cardBottom"></div>
+  </div>
+  <aside id="side">
+    <div class="status" id="status">White to move</div>
+    <div id="moves"></div>
+    <div class="toggles">
+      <label class="opt small"><span><b>Eval bar</b></span><input type="checkbox" id="gEval" class="switch"></label>
+      <label class="opt small"><span><b>Auto-flip</b></span><input type="checkbox" id="gFlip" class="switch"></label>
+    </div>
+    <div class="actions">
+      <button id="undoBtn" class="btn">Undo</button>
+      <button id="newBtn" class="btn">New game</button>
+    </div>
+  </aside>
+</section>
+
+<!-- DIALOGS -->
+<div id="modal" class="modal hidden"><div class="dialog"><h2 id="mTitle"></h2><p id="mText"></p><div class="mbtns" id="mBtns"></div></div></div>
+<div id="ghost"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
