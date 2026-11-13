@@ -48,6 +48,8 @@ Riki Tiki still keeps its own save under `rikki-tikki-v2` and still reads `rikki
 
 Those shared records also go to Firebase (project `boki-games`) so the family’s phones and iPads see the same names and leaderboards. Finished chess series are stored too (`boki-chess-series-v1`, collection `chessSeries`). Each device keeps a copy for when the internet is off, and sends it later. A small **Synced** / **Offline** label sits in the corner.
 
+A name that contains “test”, such as Test 1 or Testing, is left off every leaderboard. Those games are still saved, and they do not change anyone else’s ranking.
+
 Riki Tiki ranks by wins, then average points. Tablice ranks by wins, then win rate. A pairs win counts for both partners. Chess ranks by wins, then series wins, then win rate. Draws count as games and not as wins.
 
 In-progress games stay on the device that started them.
@@ -59,6 +61,8 @@ The web config lives in `shared/store.config.js`. The API key there was checked 
 ## Tablice
 
 Two, three or four players. With four, the default is two pairs, and the scoreboard shows the two teams while all four names stay in the history. First to 101 is the usual target; three players start at 51. Either target can be chosen.
+
+With two players, or four playing as pairs, typing one side’s card points fills the other side so the two boxes add up to 22. A final round, and Finish game, leave both boxes free. Three players and four individuals type every box.
 
 Each round, enter the card points for each side. There are 22 card points. In a two-player or four-player game, the side with the most cards also gets 3, so a normal round adds up to 25, or 22 if that was a tie. Three players have no most-cards bonus. Tabla is an extra +1 for the player who made it (their team, in pairs) and is not part of the 22 or 25.
 

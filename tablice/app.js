@@ -1,8 +1,9 @@
 import "../shared/status.js";
 import { loadTablice, saveTablice, listPlayers, rememberPlayer, nameKey, normaliseName } from "../shared/store.js";
+import { isTestName } from "../shared/standings.js";
 import {
-  defaultTarget, dealerOrder, dealerPlayer, makeSides, hasMostCards, cardTotal, expectedCardTotal,
-  project, lockedSides, outcome, checkRound, winningRound, forcedFinal, finishDecision, lockThreshold,
+  CARD_POINTS, defaultTarget, dealerOrder, dealerPlayer, makeSides, hasMostCards, cardTotal, expectedCardTotal,
+  project, lockedSides, outcome, checkRound, winningRound, forcedFinal, finishDecision,
 } from "./score.js";
 
 const $ = (id) => document.getElementById(id);
@@ -19,6 +20,7 @@ let matches = [];
 let game = null;
 let sharedPlayers = [];
 let reviewing = false;
+let roundsOpen = false;
 let profileId = null;
 let pendingAnyway = null;
 
@@ -242,6 +244,23 @@ function confirmNew() {
   $("confirm-modal").classList.add("open");
 }
 
+function twoCardSides() {
+  return sidesOf().length === 2;
+}
+function roundIsFinal() {
+  return forcedFinal(totalsBefore(), game.target) || !!(game.draft && game.draft.finalRound);
+}
+function canAutofill() {
+  return !!(game && twoCardSides() && !roundIsFinal());
+}
+/** The field just edited sets the other side to 22 minus that number. */
+function mirrorFrom(index) {
+  if (!canAutofill()) return;
+  const entered = Math.min(CARD_POINTS, clamp(game.draft.cards[index]));
+  game.draft.cards[index] = entered;
+  game.draft.cards[index === 0 ? 1 : 0] = CARD_POINTS - entered;
+}
+
 function readDraft() {
   if (!game) return;
   const root = $("action-card");
@@ -274,11 +293,16 @@ function renderGame() {
   const forced = forcedFinal(before, game.target);
   const state = running();
   const leaders = leaderIndexes(state.totals);
+  const roundLabel = game.editing != null ? "Editing " + (game.editing + 1) : "Round " + (game.rounds.length + 1);
   $("banner").innerHTML =
-    '<div class="kicker">' + (game.editing != null ? "Editing round " + (game.editing + 1) : "Round " + (game.rounds.length + 1)) + "</div>" +
-    "<h2>First to " + game.target + "</h2>" +
-    "<p><span class=\"dealer-dot\"></span>Dealer: <strong>" + esc(game.players[dealer].name) + "</strong>" +
-    (state.history.length && outcome(state.totals, game.target).tie ? " · It's a tie. Keep playing." : "") + "</p>";
+    '<p class="meta-line"><b>' + roundLabel + "</b> · to " + game.target +
+    ' · <span class="dealer-dot"></span>' + esc(game.players[dealer].name) +
+    (state.history.length && outcome(state.totals, game.target).tie ? " · tied, keep playing" : "") + "</p>";
+  const phone = window.matchMedia("(max-width: 899px)").matches;
+  $("history-card").hidden = phone && !roundsOpen;
+  $("rounds-toggle").setAttribute("aria-expanded", roundsOpen ? "true" : "false");
+  $("rounds-toggle").textContent = "Rounds" + (game.rounds.length ? " " + game.rounds.length : "");
+  $("dock").hidden = reviewing && game.editing == null;
   $("totals").innerHTML = sides.map((side, index) => {
     const locked = lockedSides(state.totals.length ? state.totals : before, game.target)[index];
     return '<div class="chip' + (leaders.includes(index) ? " leader" : "") + '"><b>' + esc(side.label) +
@@ -317,46 +341,58 @@ function renderHistoryCard() {
   $("history-card").innerHTML = html;
 }
 
+function cardStepper(index, value, label) {
+  const max = canAutofill() ? CARD_POINTS : 99;
+  return '<span class="stepper tight"><button type="button" class="mini" data-act="card-minus" data-side="' + index + '" aria-label="Fewer card points for ' + esc(label) + '">−</button>' +
+    '<input data-card="' + index + '" inputmode="numeric" type="number" min="0" max="' + max + '" value="' + value + '" aria-label="Card points for ' + esc(label) + '">' +
+    '<button type="button" class="mini" data-act="card-plus" data-side="' + index + '" aria-label="More card points for ' + esc(label) + '">+</button></span>';
+}
+function tablaStepper(playerIndex, value, name, locked) {
+  const off = locked ? " disabled" : "";
+  return '<span class="stepper tight tabla">' +
+    '<button type="button" class="mini" data-act="tabla-minus" data-player="' + playerIndex + '"' + off + ' aria-label="Fewer tablas for ' + esc(name) + '">−</button>' +
+    '<input data-tabla="' + playerIndex + '" inputmode="numeric" type="number" min="0" max="99" value="' + value + '"' + off + ' aria-label="Tablas for ' + esc(name) + '">' +
+    '<button type="button" class="mini" data-act="tabla-plus" data-player="' + playerIndex + '"' + off + ' aria-label="Tabla for ' + esc(name) + '">+</button></span>';
+}
 function renderEntry(sides, before, forced, dealer) {
   const count = game.players.length;
   const locks = lockedSides(before, game.target);
   const draft = game.draft;
-  let html = game.editing != null ? "<h3>Fix round " + (game.editing + 1) + "</h3>" : "<h3>This round</h3>";
+  let html = "";
+  if (game.editing != null) html += '<p class="edit-line">Fixing round ' + (game.editing + 1) + ' <button type="button" data-act="cancel-edit">Cancel</button></p>';
+  const sameRowTabla = sides.length >= 2 && sides.every((side) => side.members.length === 1);
   sides.forEach((side, index) => {
-    html += '<div class="side-block"><div class="side-head"><b>' + esc(side.label) + "</b></div>" +
-      '<div class="stepper"><button type="button" class="mini" data-act="card-minus" data-side="' + index + '" aria-label="Fewer card points">−</button>' +
-      '<input data-card="' + index + '" inputmode="numeric" type="number" min="0" max="99" value="' + draft.cards[index] + '" aria-label="Card points for ' + esc(side.label) + '">' +
-      '<button type="button" class="mini" data-act="card-plus" data-side="' + index + '" aria-label="More card points">+</button></div></div>';
+    const playerIndex = side.members.length === 1 ? side.members[0] : -1;
+    const locked = !!locks[index];
+    const who = (playerIndex === dealer ? '<span class="dealer-dot"></span>' : "") + esc(side.label) + (locked && sameRowTabla ? ' <span class="lock">🔒</span>' : "");
+    html += '<div class="entry-row"><span class="who">' + who + "</span>" + cardStepper(index, draft.cards[index], side.label);
+    if (sameRowTabla) html += tablaStepper(playerIndex, draft.tablas[playerIndex], game.players[playerIndex].name, locked);
+    html += "</div>";
+    if (!sameRowTabla) {
+      html += '<div class="tabla-line">';
+      side.members.forEach((member) => {
+        const memberLocked = !!locks[index];
+        html += '<span class="tabla-person"><span class="who">' + (member === dealer ? '<span class="dealer-dot"></span>' : "") + esc(game.players[member].name) +
+          (memberLocked ? ' <span class="lock">🔒</span>' : "") + "</span>" +
+          tablaStepper(member, draft.tablas[member], game.players[member].name, memberLocked) + "</span>";
+      });
+      html += "</div>";
+    }
   });
   if (hasMostCards(count)) {
-    html += '<div class="label">Most cards</div><div class="most">';
+    html += '<div class="most slim" role="group" aria-label="Most cards">';
     sides.forEach((side, index) => {
       html += '<button type="button" class="mini' + (draft.most === index ? " on" : "") + '" data-act="most" data-most="' + index + '">' + esc(side.label) + "</button>";
     });
     html += '<button type="button" class="mini' + (draft.most === "tie" ? " on" : "") + '" data-act="most" data-most="tie">Tie</button></div>';
   }
-  html += '<div class="label">Tabla</div>';
-  if (locks.some(Boolean)) html += '<p class="lock">🔒 Locked from ' + lockThreshold(game.target) + ' for the rest of the game.</p>';
-  game.players.forEach((player, index) => {
-    const side = sides.findIndex((item) => item.members.includes(index));
-    const locked = !!locks[side];
-    html += '<div class="player-line"><span>' + (index === dealer ? '<span class="dealer-dot"></span>' : "") + esc(player.name) +
-      (locked ? ' <span class="lock">🔒</span>' : "") + "</span>" +
-      '<span class="stepper"><button type="button" class="mini" data-act="tabla-minus" data-player="' + index + '"' + (locked ? " disabled" : "") + ">−</button>" +
-      '<input data-tabla="' + index + '" inputmode="numeric" type="number" min="0" max="99" value="' + draft.tablas[index] + '"' + (locked ? " disabled" : "") + ' aria-label="Tablas for ' + esc(player.name) + '">' +
-      '<button type="button" class="mini" data-act="tabla-plus" data-player="' + index + '"' + (locked ? " disabled" : "") + ">+</button></span></div>";
-  });
   html += '<label class="final-row"><input type="checkbox" id="final-round"' + ((forced || draft.finalRound) ? " checked" : "") + (forced ? " disabled" : "") + "> Final round";
   if (forced) html += ' <span class="final-badge">Final round!</span>';
   html += "</label>";
   html += sumLine(draft, count, forced);
   if (game.finishNote) html += '<p class="note" id="finish-note">' + esc(game.finishNote) + "</p>";
   else html += '<p class="note" id="finish-note" hidden></p>';
-  html += '<div class="action-buttons"><button type="button" class="btn btn-primary" data-act="save">Save round</button>' +
-    '<button type="button" class="btn btn-gold" data-act="finish">Finish game</button>' +
-    (game.rounds.length ? '<button type="button" class="btn btn-ghost" data-act="undo">Undo last round</button>' : "") +
-    (game.editing != null ? '<button type="button" class="btn btn-ghost" data-act="cancel-edit">Cancel edit</button>' : "") +
-    "</div>";
+  if (game.rounds.length) html += '<button type="button" class="text-btn" data-act="undo">Undo last round</button>';
   $("action-card").innerHTML = html;
 }
 
@@ -390,6 +426,7 @@ function onActionClick(event) {
     const index = Number(btn.dataset.side);
     const delta = act === "card-plus" ? 1 : -1;
     game.draft.cards[index] = clamp((game.draft.cards[index] || 0) + delta);
+    mirrorFrom(index);
     game.finishNote = "";
     renderGame();
   } else if (act === "tabla-plus" || act === "tabla-minus") {
@@ -412,7 +449,15 @@ function onActionClick(event) {
 
 function onActionInput(event) {
   if (!event.target.matches("[data-card], [data-tabla], #final-round")) return;
+  const card = event.target.matches("[data-card]") ? Number(event.target.dataset.card) : -1;
   readDraft();
+  if (card >= 0) {
+    mirrorFrom(card);
+    event.target.value = game.draft.cards[card];
+    const other = card === 0 ? 1 : 0;
+    const otherInput = document.querySelector('[data-card="' + other + '"]');
+    if (otherInput && canAutofill()) otherInput.value = game.draft.cards[other];
+  }
   game.finishNote = "";
   refreshSum();
 }
@@ -605,6 +650,7 @@ function renderHistory() {
   let html = "<h3>Players</h3>";
   if (!people.length) html += '<p class="empty">No players yet.</p>';
   people.forEach((profile) => {
+    if (isTestName(profile.name)) return;
     const stats = statsFor(profile.id);
     html += '<button type="button" class="player-item" data-profile="' + profile.id + '"><span>' + esc(profile.name) +
       "</span><span>" + stats.wins + " wins · " + stats.games + " games</span></button>";
@@ -623,7 +669,7 @@ function renderHistory() {
 }
 
 function statsFor(id) {
-  const played = matches.filter((match) => !match.void && (match.players || []).some((player) => player.id === id));
+  const played = matches.filter((match) => !match.void && !(match.players || []).some((player) => isTestName(player && player.name)) && (match.players || []).some((player) => player.id === id));
   let wins = 0;
   let points = 0;
   let rounds = 0;
@@ -729,6 +775,11 @@ $("warn-fix").addEventListener("click", closeWarn);
 $("warn-anyway").addEventListener("click", () => { const next = pendingAnyway; closeWarn(); if (next) next(); });
 $("action-card").addEventListener("click", onActionClick);
 $("history-card").addEventListener("click", onActionClick);
+$("dock").addEventListener("click", onActionClick);
 $("action-card").addEventListener("input", onActionInput);
+$("rounds-toggle").addEventListener("click", () => {
+  roundsOpen = !roundsOpen;
+  renderGame();
+});
 
 load();

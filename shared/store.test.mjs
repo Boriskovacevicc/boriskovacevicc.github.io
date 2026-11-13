@@ -79,5 +79,25 @@ t("Tablice save uses boki-tablice-v1", loadedTablice.matches[0].id === "tab1" &&
 const table = tabliceStandings(loadedTablice.matches);
 t("a pairs win counts for both partners", table.find((row) => row.name === "Boris Kovacevic").wins === 1 && table.find((row) => row.name === "Mum").wins === 1 && table.find((row) => row.name === "Ana").wins === 0);
 t("tablas are counted per player", table.find((row) => row.name === "Boris Kovacevic").tablas === 1 && table.find((row) => row.name === "Mum").tablas === 0);
+const withPractice = tabliceStandings([
+  ...loadedTablice.matches,
+  {
+    id: "practice",
+    players: [{ id: "tb", name: "Boris Kovacevic" }, { id: "tx", name: "Test 1" }],
+    sides: [{ label: "Boris Kovacevic", members: [0] }, { label: "Test 1", members: [1] }],
+    rounds: [{ points: [10, 5], tablas: [0, 2] }],
+    winnerIds: ["tx"],
+  },
+]);
+t("a test name is left off the Tablice table", !withPractice.some((row) => /test/i.test(row.name)) && withPractice.find((row) => row.name === "Boris Kovacevic").wins === 1 && withPractice.find((row) => row.name === "Boris Kovacevic").games === 1);
+const rikiPractice = rikiStandings([
+  { players: [{ id: "a", name: "Boris Kovacevic" }, { id: "t", name: "Testing" }], totals: [1, 20], winnerIds: ["t"] },
+]);
+t("a test match does not change Riki rankings", rikiPractice.length === 0);
+const chessPractice = chessStandings(
+  [{ id: "p", white: "Boris Kovacevic", black: "test10", result: "0-1" }],
+  [{ finished: true, drawn: false, winnerKey: "t", keyW: "t", keyB: "b", nameW: "Test 1", nameB: "Boris Kovacevic" }],
+);
+t("a test game does not change the chess table", chessPractice.length === 0);
 
 if (failed) process.exit(1);

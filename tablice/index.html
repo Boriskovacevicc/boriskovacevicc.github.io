@@ -63,18 +63,29 @@
     </section>
 
     <section id="screen-game" class="screen">
-      <div class="topbar">
-        <div class="brand"><h1>Boki Tablice</h1></div>
+      <div class="slim">
+        <h1>Tablice</h1>
         <div class="top-actions">
-          <button type="button" class="icon-btn" id="game-help">Help</button>
-          <button type="button" class="icon-btn danger" id="new-game-btn">New game</button>
+          <button type="button" class="icon-only" id="rounds-toggle" aria-expanded="false" aria-label="Rounds">Rounds</button>
+          <button type="button" class="icon-only" id="game-help" aria-label="Help">?</button>
+          <button type="button" class="icon-only danger" id="new-game-btn" aria-label="New game">✕</button>
         </div>
       </div>
-      <div class="banner" id="banner"></div>
-      <div class="totals" id="totals"></div>
-      <div class="game-grid">
-        <div class="panel" id="history-card"></div>
-        <div class="panel action-card" id="action-card"></div>
+      <div class="play-body">
+        <div class="col-board">
+          <div id="score-strip">
+            <div class="banner" id="banner"></div>
+            <div class="totals" id="totals"></div>
+          </div>
+          <div class="panel" id="history-card"></div>
+        </div>
+        <div class="col-entry">
+          <div class="panel action-card" id="action-card"></div>
+          <div class="dock" id="dock">
+            <button type="button" class="btn btn-primary" data-act="save">Save round</button>
+            <button type="button" class="btn btn-gold" data-act="finish">Finish game</button>
+          </div>
+        </div>
       </div>
     </section>
 
