@@ -66,25 +66,22 @@
       <div class="slim">
         <h1>Tablice</h1>
         <div class="top-actions">
-          <button type="button" class="icon-only" id="rounds-toggle" aria-expanded="false" aria-label="Rounds">Rounds</button>
           <button type="button" class="icon-only" id="game-help" aria-label="Help">?</button>
           <button type="button" class="icon-only danger" id="new-game-btn" aria-label="New game">✕</button>
         </div>
       </div>
       <div class="play-body">
-        <div class="col-board">
-          <div id="score-strip">
-            <div class="banner" id="banner"></div>
-            <div class="totals" id="totals"></div>
+        <div class="board-wrap">
+          <p class="meta-line" id="banner"></p>
+          <div class="board-scroll" id="board-scroll">
+            <table class="scoreboard" id="score-table"></table>
           </div>
-          <div class="panel" id="history-card"></div>
+          <div class="tabla-bar" id="tabla-bar"></div>
         </div>
-        <div class="col-entry">
-          <div class="panel action-card" id="action-card"></div>
-          <div class="dock" id="dock">
-            <button type="button" class="btn btn-primary" data-act="save">Save round</button>
-            <button type="button" class="btn btn-gold" data-act="finish">Finish game</button>
-          </div>
+        <div class="entry-panel" id="action-card"></div>
+        <div class="dock" id="dock">
+          <button type="button" class="btn btn-primary" data-act="save">Save round</button>
+          <button type="button" class="btn btn-gold" data-act="finish">Finish game</button>
         </div>
       </div>
     </section>

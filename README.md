@@ -62,6 +62,8 @@ The web config lives in `shared/store.config.js`. The API key there was checked 
 
 Two, three or four players. With four, the default is two pairs, and the scoreboard shows the two teams while all four names stay in the history. First to 101 is the usual target; three players start at 51. Either target can be chosen.
 
+The game screen is a scoreboard. Each round shows card points and tablas, like 14 (2), and the running total beside them. The table scrolls on its own when the list gets long. A Tabla button under each side adds one tabla to the round you are entering.
+
 With two players, or four playing as pairs, typing one side’s card points fills the other side so the two boxes add up to 22. A final round, and Finish game, leave both boxes free. Three players and four individuals type every box.
 
 Each round, enter the card points for each side. There are 22 card points. In a two-player or four-player game, the side with the most cards also gets 3, so a normal round adds up to 25, or 22 if that was a tie. Three players have no most-cards bonus. Tabla is an extra +1 for the player who made it (their team, in pairs) and is not part of the 22 or 25.

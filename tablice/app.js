@@ -2,7 +2,7 @@ import "../shared/status.js";
 import { loadTablice, saveTablice, listPlayers, rememberPlayer, nameKey, normaliseName } from "../shared/store.js";
 import { isTestName } from "../shared/standings.js";
 import {
-  CARD_POINTS, defaultTarget, dealerOrder, dealerPlayer, makeSides, hasMostCards, cardTotal, expectedCardTotal,
+  CARD_POINTS, defaultTarget, dealerOrder, dealerPlayer, makeSides, hasMostCards, bonusPoints, cardTotal, expectedCardTotal,
   project, lockedSides, outcome, checkRound, winningRound, forcedFinal, finishDecision,
 } from "./score.js";
 
@@ -20,7 +20,7 @@ let matches = [];
 let game = null;
 let sharedPlayers = [];
 let reviewing = false;
-let roundsOpen = false;
+let shownRows = -1;
 let profileId = null;
 let pendingAnyway = null;
 
@@ -217,6 +217,7 @@ function startGame() {
   };
   game.draft = emptyDraft();
   reviewing = false;
+  shownRows = -1;
   save();
   fillNames();
   setScreen("game");
@@ -278,6 +279,38 @@ function roundIndex() {
   return game.editing == null ? game.rounds.length : game.editing;
 }
 
+function shortName(label) {
+  const text = String(label || "");
+  if (text.length <= 12) return text;
+  if (text.includes(" & ")) return text.split(" & ").map((part) => part.slice(0, 5)).join(" & ");
+  return text.slice(0, 10);
+}
+function sideTablaTotal(side) {
+  return side.members.reduce((sum, index) => sum + (Number(game.draft.tablas[index]) || 0), 0);
+}
+function bumpSideTabla(sideIndex, delta) {
+  const side = sidesOf()[sideIndex];
+  if (!side) return;
+  if (delta > 0) {
+    const first = side.members[0];
+    game.draft.tablas[first] = clamp((game.draft.tablas[first] || 0) + 1);
+    return;
+  }
+  const who = [...side.members].reverse().find((index) => (game.draft.tablas[index] || 0) > 0);
+  if (who == null) return;
+  game.draft.tablas[who] = clamp(game.draft.tablas[who] - 1);
+}
+function roundSplit(round, sides) {
+  const count = game.players.length;
+  const most = hasMostCards(count) ? round.most : "tie";
+  return sides.map((side, index) => {
+    const cards = Number(round.cards && round.cards[index]) || 0;
+    const bonus = most === index ? bonusPoints(count, most) : 0;
+    const tablas = side.members.reduce((sum, player) => sum + (Number(round.tablas && round.tablas[player]) || 0), 0);
+    return { shown: cards + bonus, tablas };
+  });
+}
+
 function renderGame() {
   if (!game) return;
   if (game.phase === "done" && !reviewing && game.editing == null) {
@@ -292,30 +325,77 @@ function renderGame() {
   const dealer = dealerPlayer(roundIndex(), count, modeOf(), game.firstDealer);
   const forced = forcedFinal(before, game.target);
   const state = running();
-  const leaders = leaderIndexes(state.totals);
+  const dealerSide = sides.findIndex((side) => side.members.includes(dealer));
   const roundLabel = game.editing != null ? "Editing " + (game.editing + 1) : "Round " + (game.rounds.length + 1);
-  $("banner").innerHTML =
-    '<p class="meta-line"><b>' + roundLabel + "</b> · to " + game.target +
-    ' · <span class="dealer-dot"></span>' + esc(game.players[dealer].name) +
-    (state.history.length && outcome(state.totals, game.target).tie ? " · tied, keep playing" : "") + "</p>";
-  const phone = window.matchMedia("(max-width: 899px)").matches;
-  $("history-card").hidden = phone && !roundsOpen;
-  $("rounds-toggle").setAttribute("aria-expanded", roundsOpen ? "true" : "false");
-  $("rounds-toggle").textContent = "Rounds" + (game.rounds.length ? " " + game.rounds.length : "");
+  $("banner").innerHTML = "<b>" + roundLabel + "</b> · to " + game.target +
+    " · <span class=\"dealer-dot\"></span>" + esc(game.players[dealer].name) +
+    (state.history.length && outcome(state.totals, game.target).tie ? " · tied, keep playing" : "");
   $("dock").hidden = reviewing && game.editing == null;
-  $("totals").innerHTML = sides.map((side, index) => {
-    const locked = lockedSides(state.totals.length ? state.totals : before, game.target)[index];
-    return '<div class="chip' + (leaders.includes(index) ? " leader" : "") + '"><b>' + esc(side.label) +
-      (locked ? ' <span class="lock">🔒</span>' : "") + '</b><div class="cs">' + (state.totals[index] || 0) + "</div></div>";
-  }).join("");
-  renderHistoryCard();
+  $("tabla-bar").hidden = reviewing && game.editing == null;
+  renderBoard(sides, state, before, dealerSide);
+  renderTablaBar(sides, before, dealerSide);
   if (reviewing && game.editing == null) {
-    $("action-card").innerHTML = "<h3>Finished</h3><p class='help'>The scoreboard is saved. Undo the last round if it needs a fix.</p>" +
+    $("action-card").innerHTML = '<p class="help">Hold a round if you need to change it.</p>' +
       '<div class="action-buttons"><button type="button" class="btn btn-primary" data-act="back-results">Back to results</button>' +
       '<button type="button" class="btn btn-ghost" data-act="undo">Undo last round</button></div>';
     return;
   }
-  renderEntry(sides, before, forced, dealer);
+  renderEntry(sides, before, forced);
+}
+
+function renderBoard(sides, state, before, dealerSide) {
+  const locks = lockedSides(before, game.target);
+  let html = "<thead><tr><th class='rnd' rowspan='2'>Round</th>";
+  sides.forEach((side, index) => {
+    const mark = (index === dealerSide ? '<i class="ddot" title="Deals this round"></i>' : "") +
+      (locks[index] ? '<i class="lock" title="Tablas locked">🔒</i>' : "");
+    html += '<th colspan="2" title="' + esc(side.label) + '">' + mark + esc(shortName(side.label)) + "</th>";
+  });
+  html += "</tr><tr>";
+  sides.forEach(() => { html += "<th>Pts</th><th>Tot</th>"; });
+  html += "</tr></thead><tbody>";
+  if (!game.rounds.length) {
+    html += '<tr><td class="rnd">—</td><td class="empty-cell" colspan="' + (sides.length * 2) + '">Scores appear here</td></tr>';
+  }
+  game.rounds.forEach((round, index) => {
+    const dealt = dealerPlayer(index, game.players.length, modeOf(), game.firstDealer);
+    const dealtSide = sides.findIndex((side) => side.members.includes(dealt));
+    const split = roundSplit(round, sides);
+    const runningTotals = state.history[index] ? state.history[index].totals : [];
+    html += '<tr data-round="' + index + '" title="Hold to edit. Dealer ' + esc(game.players[dealt].name) + '">';
+    html += '<td class="rnd">' + (index + 1) + "</td>";
+    split.forEach((cell, sideIndex) => {
+      html += '<td class="pts">' + (sideIndex === dealtSide ? '<i class="ddot" title="Dealer"></i>' : "") + cell.shown + " (" + cell.tablas + ")</td>";
+      html += '<td class="tot">' + (runningTotals[sideIndex] || 0) + "</td>";
+    });
+    html += "</tr>";
+  });
+  html += "</tbody>";
+  $("score-table").innerHTML = html;
+  const scroller = $("board-scroll");
+  if (game.rounds.length !== shownRows) {
+    shownRows = game.rounds.length;
+    const pin = () => { scroller.scrollTop = scroller.scrollHeight; };
+    pin();
+    requestAnimationFrame(pin);
+  }
+}
+
+function renderTablaBar(sides, before, dealerSide) {
+  const locks = lockedSides(before, game.target);
+  $("tabla-bar").style.setProperty("--sides", String(sides.length));
+  let html = '<div class="round-spacer" aria-hidden="true"></div>';
+  sides.forEach((side, index) => {
+    const count = sideTablaTotal(side);
+    const locked = !!locks[index];
+    html += '<div class="tabla-slot">' +
+      '<button type="button" class="tabla-btn" data-act="tabla-add" data-side="' + index + '"' + (locked ? " disabled" : "") +
+      ' aria-label="Tabla for ' + esc(side.label) + '">' + (locked ? "🔒 Tabla" : "Tabla") +
+      (count ? " +" + count : "") + "</button>" +
+      (count && !locked ? '<button type="button" class="undo-mini" data-act="tabla-undo" data-side="' + index + '" aria-label="Undo tabla">↶</button>' : "") +
+      "</div>";
+  });
+  $("tabla-bar").innerHTML = html;
 }
 
 function leaderIndexes(totals) {
@@ -341,48 +421,21 @@ function renderHistoryCard() {
   $("history-card").innerHTML = html;
 }
 
-function cardStepper(index, value, label) {
-  const max = canAutofill() ? CARD_POINTS : 99;
-  return '<span class="stepper tight"><button type="button" class="mini" data-act="card-minus" data-side="' + index + '" aria-label="Fewer card points for ' + esc(label) + '">−</button>' +
-    '<input data-card="' + index + '" inputmode="numeric" type="number" min="0" max="' + max + '" value="' + value + '" aria-label="Card points for ' + esc(label) + '">' +
-    '<button type="button" class="mini" data-act="card-plus" data-side="' + index + '" aria-label="More card points for ' + esc(label) + '">+</button></span>';
-}
-function tablaStepper(playerIndex, value, name, locked) {
-  const off = locked ? " disabled" : "";
-  return '<span class="stepper tight tabla">' +
-    '<button type="button" class="mini" data-act="tabla-minus" data-player="' + playerIndex + '"' + off + ' aria-label="Fewer tablas for ' + esc(name) + '">−</button>' +
-    '<input data-tabla="' + playerIndex + '" inputmode="numeric" type="number" min="0" max="99" value="' + value + '"' + off + ' aria-label="Tablas for ' + esc(name) + '">' +
-    '<button type="button" class="mini" data-act="tabla-plus" data-player="' + playerIndex + '"' + off + ' aria-label="Tabla for ' + esc(name) + '">+</button></span>';
-}
-function renderEntry(sides, before, forced, dealer) {
+function renderEntry(sides, before, forced) {
   const count = game.players.length;
-  const locks = lockedSides(before, game.target);
   const draft = game.draft;
-  let html = "";
-  if (game.editing != null) html += '<p class="edit-line">Fixing round ' + (game.editing + 1) + ' <button type="button" data-act="cancel-edit">Cancel</button></p>';
-  const sameRowTabla = sides.length >= 2 && sides.every((side) => side.members.length === 1);
+  const max = canAutofill() ? CARD_POINTS : 99;
+  let html = '<div class="field-label">Round score</div><div class="score-grid" style="--sides:' + sides.length + '">';
+  if (game.editing != null) html = '<p class="edit-line">Fixing round ' + (game.editing + 1) + ' <button type="button" data-act="cancel-edit">Cancel</button></p>' + html;
   sides.forEach((side, index) => {
-    const playerIndex = side.members.length === 1 ? side.members[0] : -1;
-    const locked = !!locks[index];
-    const who = (playerIndex === dealer ? '<span class="dealer-dot"></span>' : "") + esc(side.label) + (locked && sameRowTabla ? ' <span class="lock">🔒</span>' : "");
-    html += '<div class="entry-row"><span class="who">' + who + "</span>" + cardStepper(index, draft.cards[index], side.label);
-    if (sameRowTabla) html += tablaStepper(playerIndex, draft.tablas[playerIndex], game.players[playerIndex].name, locked);
-    html += "</div>";
-    if (!sameRowTabla) {
-      html += '<div class="tabla-line">';
-      side.members.forEach((member) => {
-        const memberLocked = !!locks[index];
-        html += '<span class="tabla-person"><span class="who">' + (member === dealer ? '<span class="dealer-dot"></span>' : "") + esc(game.players[member].name) +
-          (memberLocked ? ' <span class="lock">🔒</span>' : "") + "</span>" +
-          tablaStepper(member, draft.tablas[member], game.players[member].name, memberLocked) + "</span>";
-      });
-      html += "</div>";
-    }
+    html += '<label><span title="' + esc(side.label) + '">' + esc(shortName(side.label)) + "</span>" +
+      '<input data-card="' + index + '" inputmode="numeric" type="number" min="0" max="' + max + '" value="' + draft.cards[index] + '" aria-label="Card points for ' + esc(side.label) + '"></label>';
   });
+  html += "</div>";
   if (hasMostCards(count)) {
-    html += '<div class="most slim" role="group" aria-label="Most cards">';
+    html += '<div class="field-label">Most cards</div><div class="most slim" role="group" aria-label="Most cards">';
     sides.forEach((side, index) => {
-      html += '<button type="button" class="mini' + (draft.most === index ? " on" : "") + '" data-act="most" data-most="' + index + '">' + esc(side.label) + "</button>";
+      html += '<button type="button" class="mini' + (draft.most === index ? " on" : "") + '" data-act="most" data-most="' + index + '">' + esc(shortName(side.label)) + "</button>";
     });
     html += '<button type="button" class="mini' + (draft.most === "tie" ? " on" : "") + '" data-act="most" data-most="tie">Tie</button></div>';
   }
@@ -400,13 +453,13 @@ function sumLine(draft, count, forced) {
   const most = hasMostCards(count) ? draft.most : "tie";
   if (forced || draft.finalRound) {
     const got = cardTotal(draft.cards, count, most === "unset" ? "tie" : most);
-    return '<p class="sum ok" id="sum-line">Final round · card points ' + got + ". Any total is fine.</p>";
+    return '<p class="sum ok" id="sum-line">Final round · ' + got + " card points</p>";
   }
-  if (most === "unset") return '<p class="sum" id="sum-line">Pick who had the most cards, or Tie.</p>';
+  if (most === "unset") return '<p class="sum" id="sum-line">Pick most cards, or Tie.</p>';
   const got = cardTotal(draft.cards, count, most);
   const expected = expectedCardTotal(count, most);
   const ok = got === expected;
-  return '<p class="sum ' + (ok ? "ok" : "bad") + '" id="sum-line">Card points ' + got + (ok ? "" : " · needs " + expected) + ". Tablas are extra.</p>";
+  return '<p class="sum ' + (ok ? "ok" : "bad") + '" id="sum-line">' + (ok ? "Card points " + got : got + " card points, needs " + expected) + "</p>";
 }
 
 function refreshSum() {
@@ -422,19 +475,11 @@ function onActionClick(event) {
   if (!btn || !game) return;
   if ($("action-card").querySelector("[data-card]")) readDraft();
   const act = btn.dataset.act;
-  if (act === "card-plus" || act === "card-minus") {
-    const index = Number(btn.dataset.side);
-    const delta = act === "card-plus" ? 1 : -1;
-    game.draft.cards[index] = clamp((game.draft.cards[index] || 0) + delta);
-    mirrorFrom(index);
+  if (act === "tabla-add" || act === "tabla-undo") {
+    bumpSideTabla(Number(btn.dataset.side), act === "tabla-add" ? 1 : -1);
     game.finishNote = "";
-    renderGame();
-  } else if (act === "tabla-plus" || act === "tabla-minus") {
-    const index = Number(btn.dataset.player);
-    const delta = act === "tabla-plus" ? 1 : -1;
-    game.draft.tablas[index] = clamp((game.draft.tablas[index] || 0) + delta);
-    game.finishNote = "";
-    renderGame();
+    renderTablaBar(sidesOf(), totalsBefore(), sidesOf().findIndex((side) => side.members.includes(dealerPlayer(roundIndex(), game.players.length, modeOf(), game.firstDealer))));
+    return;
   } else if (act === "most") {
     game.draft.most = btn.dataset.most === "tie" ? "tie" : Number(btn.dataset.most);
     game.finishNote = "";
@@ -774,12 +819,26 @@ $("help-close").addEventListener("click", () => $("help-modal").classList.remove
 $("warn-fix").addEventListener("click", closeWarn);
 $("warn-anyway").addEventListener("click", () => { const next = pendingAnyway; closeWarn(); if (next) next(); });
 $("action-card").addEventListener("click", onActionClick);
-$("history-card").addEventListener("click", onActionClick);
+$("tabla-bar").addEventListener("click", onActionClick);
 $("dock").addEventListener("click", onActionClick);
 $("action-card").addEventListener("input", onActionInput);
-$("rounds-toggle").addEventListener("click", () => {
-  roundsOpen = !roundsOpen;
-  renderGame();
+let holdTimer = 0;
+let holdX = 0;
+let holdY = 0;
+function cancelHold() { clearTimeout(holdTimer); holdTimer = 0; }
+$("board-scroll").addEventListener("pointerdown", (event) => {
+  const row = event.target.closest("[data-round]");
+  if (!row || !game) return;
+  holdX = event.clientX;
+  holdY = event.clientY;
+  const index = Number(row.dataset.round);
+  holdTimer = setTimeout(() => beginEdit(index), 550);
+});
+$("board-scroll").addEventListener("pointermove", (event) => {
+  if (Math.hypot(event.clientX - holdX, event.clientY - holdY) > 8) cancelHold();
+});
+["pointerup", "pointercancel", "pointerleave"].forEach((type) => {
+  $("board-scroll").addEventListener(type, cancelHold);
 });
 
 load();
