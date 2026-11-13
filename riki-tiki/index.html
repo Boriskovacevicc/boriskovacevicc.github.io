@@ -988,6 +988,7 @@
   <script type="module" src="../shared/status.js"></script>
   <script type="module">
 import { loadRiki, saveRiki, listPlayers, rememberPlayer, peekRiki, peekPlayers } from "../shared/store.js";
+import { isTestName } from "../shared/standings.js";
 /* --- RIKKI LOGIC START --- */
 const Rikki = (() => {
   "use strict";
@@ -1192,13 +1193,17 @@ function seatedIds() {
   return setupSeats.slice(0, setupCount).map((s) => s.profileId).filter(Boolean);
 }
 
+function matchHasTest(match) {
+  return (match.players || []).some((p) => isTestName(p && p.name != null ? p.name : p));
+}
+
 function winsFor(profileId) {
   if (!profileId) return 0;
-  return matches.filter((m) => (m.winnerIds || []).includes(profileId)).length;
+  return matches.filter((m) => !matchHasTest(m) && (m.winnerIds || []).includes(profileId)).length;
 }
 
 function profileStats(profileId) {
-  const played = matches.filter((m) => (m.players || []).some((p) => p.id === profileId));
+  const played = matches.filter((m) => !matchHasTest(m) && (m.players || []).some((p) => p.id === profileId));
   const won = played.filter((m) => (m.winnerIds || []).includes(profileId));
   const scores = played.map((m) => {
     const i = m.players.findIndex((p) => p.id === profileId);
@@ -2261,6 +2266,7 @@ function renderHistory() {
     html += '<div class="label" style="padding:8px 8px 0">Players</div>';
     const sorted = profiles.slice().sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
     sorted.forEach((p) => {
+      if (isTestName(p.name)) return;
       const st = profileStats(p.id);
       html += '<button type="button" class="player-item" data-profile="' + p.id + '"><span class="who">' +
         esc(p.name) + winsBadge(p.id) + "</span><span class='muted'>" + st.played + " match" + (st.played === 1 ? "" : "es") +

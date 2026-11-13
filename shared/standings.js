@@ -1,12 +1,26 @@
 import { nameKey, normaliseName } from "./store.js";
 
+/** Practice names such as "Test 1" or "Testing" stay out of every ranking. */
+export function isTestName(name) {
+  return nameKey(name).includes("test");
+}
+
+function personName(player) {
+  return normaliseName(player && player.name != null ? player.name : player);
+}
+
+function hasTestPlayer(names) {
+  return (names || []).some((name) => isTestName(name));
+}
+
 /** Riki Tiki: most wins, then highest average points. */
 export function rikiStandings(matches) {
   const map = new Map();
   for (const match of matches || []) {
     const players = match.players || [];
+    if (hasTestPlayer(players.map(personName))) continue;
     players.forEach((player, index) => {
-      const name = normaliseName(player && player.name != null ? player.name : player);
+      const name = personName(player);
       const key = nameKey(name);
       if (!key) return;
       if (!map.has(key)) map.set(key, { name, wins: 0, points: 0, played: 0 });
@@ -29,10 +43,11 @@ export function tabliceStandings(matches) {
   const map = new Map();
   for (const match of matches || []) {
     if (!match || match.void || !Array.isArray(match.players)) continue;
+    if (hasTestPlayer(match.players.map(personName))) continue;
     const rounds = Array.isArray(match.rounds) ? match.rounds : [];
     const sides = Array.isArray(match.sides) ? match.sides : [];
     match.players.forEach((player, index) => {
-      const name = normaliseName(player && player.name != null ? player.name : player);
+      const name = personName(player);
       const key = nameKey(name);
       if (!key) return;
       if (!map.has(key)) map.set(key, { name, wins: 0, games: 0, points: 0, rounds: 0, tablas: 0 });
@@ -67,6 +82,7 @@ export function chessStandings(results, seriesList) {
     return map.get(key);
   };
   for (const game of results || []) {
+    if (hasTestPlayer([game.white, game.black])) continue;
     const white = touch(game.white);
     const black = touch(game.black);
     if (white) {
@@ -80,6 +96,7 @@ export function chessStandings(results, seriesList) {
   }
   for (const series of seriesList || []) {
     if (!series || !series.finished || series.drawn || !series.winnerKey) continue;
+    if (hasTestPlayer([series.nameW, series.nameB])) continue;
     const winner = series.winnerKey === series.keyW ? series.nameW : series.nameB;
     const row = touch(winner);
     if (row) row.seriesWins += 1;

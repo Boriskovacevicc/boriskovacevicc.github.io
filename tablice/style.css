@@ -100,7 +100,52 @@ input[type="text"], input[type="number"] {
 .chip b { display: block; font-size: 15px; }
 .chip .cs { font-family: "Baloo 2", system-ui, sans-serif; font-size: 32px; line-height: 1; }
 .chip.leader { background: #fff6d4; border-color: var(--gold); }
-.game-grid { display: grid; gap: 12px; }
+.slim { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; }
+.slim h1 { margin: 0; font-size: 22px; color: #fffdf8; text-shadow: 0 1px 0 rgba(80, 40, 60, 0.25); }
+.icon-only {
+  min-width: 36px; min-height: 36px; height: 36px; padding: 0 10px; border-radius: 12px;
+  background: rgba(255, 253, 248, 0.9); color: var(--felt); font-weight: 800;
+}
+.icon-only.danger { color: var(--berry); }
+.meta-line { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+#score-strip { background: var(--cream); border-radius: 16px; padding: 6px 8px 8px; margin-bottom: 6px; }
+#screen-game .banner { background: transparent; padding: 0; margin: 0; box-shadow: none; }
+#screen-game .totals { margin: 0; }
+#screen-game .chip { min-width: 0; flex: 1; padding: 2px 8px; display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+#screen-game .chip b { font-size: 13px; }
+#screen-game .chip .cs { font-size: 22px; }
+#screen-game .final-row { margin: 4px 0; font-size: 14px; }
+#screen-game .sum { margin: 4px 0; padding: 4px 8px; font-size: 13px; }
+.entry-row {
+  display: flex; align-items: center; gap: 6px; min-height: 40px;
+}
+.entry-row .who { flex: 1; font-weight: 800; min-width: 72px; }
+.stepper.tight { flex: none; }
+.stepper.tight .mini, .stepper.tight input {
+  min-width: 34px; min-height: 34px; height: 34px; width: 36px; padding: 0; font-size: 16px;
+}
+.stepper.tight input::-webkit-outer-spin-button,
+.stepper.tight input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.stepper.tight input { -moz-appearance: textfield; appearance: textfield; }
+.tabla-line { display: flex; gap: 8px; margin: 0 0 4px 8px; }
+.tabla-person { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.tabla-person .who { font-size: 13px; font-weight: 800; }
+.most.slim { display: flex; gap: 6px; margin: 6px 0; }
+.most.slim .mini { flex: 1; min-width: 0; min-height: 34px; height: 34px; padding: 0 6px; font-size: 14px; }
+.edit-line, .text-btn { font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+.text-btn { min-height: 32px; text-decoration: underline; }
+.dock { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 0 calc(8px + var(--safe-b)); }
+.dock .btn { min-height: 44px; font-size: 17px; }
+#screen-game.active {
+  position: fixed; inset: 0; z-index: 2; display: flex; flex-direction: column;
+  height: 100dvh; max-height: 100dvh; overflow: hidden;
+  padding: calc(4px + var(--safe-t)) 8px 0;
+}
+.play-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.col-entry { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+#screen-game .action-card { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px; margin: 0; }
+#screen-game .panel { padding: 8px 10px; }
+body:has(#screen-game.active) .boki-sync { bottom: calc(58px + var(--safe-b)); }
 .side-block, .player-line, .round-row {
   background: var(--white); border: 1px solid var(--cream-3); border-radius: 16px; padding: 10px; margin-bottom: 8px;
 }
@@ -148,6 +193,12 @@ input[type="text"], input[type="number"] {
 .empty { color: var(--ink-soft); }
 @media (min-width: 900px) {
   .modal-backdrop.open { align-items: center; }
-  .game-grid { grid-template-columns: 1.05fr 0.95fr; align-items: start; }
   .names { grid-template-columns: 1fr 1fr; }
+  #screen-game.active { position: static; height: auto; max-height: none; overflow: visible; display: block; padding: 0; }
+  .play-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+  #history-card { display: block !important; }
+  #rounds-toggle { display: none; }
+  #screen-game .action-card { overflow: visible; }
+  .slim h1 { font-size: 32px; }
+  body:has(#screen-game.active) .boki-sync { bottom: calc(8px + var(--safe-b)); }
 }
