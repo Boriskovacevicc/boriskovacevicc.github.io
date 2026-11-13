@@ -12,29 +12,48 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-180.png">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="../shared/fonts.css">
+<link rel="stylesheet" href="../shared/status.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <!-- SETUP -->
 <section id="setup" class="screen">
   <div class="setup-card">
-    <a class="hub-link" href="../">← Games</a>
+    <a class="hub-link" href="../">Boki Games</a>
     <div class="logo"><img src="pieces/wN.svg" alt=""><h1>Boki Chess</h1></div>
     <p class="sub">Over-the-board chess for two, with Stockfish hints</p>
 
     <div class="players">
       <div class="pl-setup">
         <div class="pl-head"><span class="dot white"></span>White</div>
-        <input id="nameW" type="text" maxlength="18" placeholder="White player's name" autocomplete="off" autocapitalize="words" spellcheck="false">
+        <input id="nameW" type="text" maxlength="32" placeholder="White player's name" autocomplete="off" autocapitalize="words" spellcheck="false" list="boki-players">
+        <label class="rate-label">chess.com <input id="rateW" class="rate" inputmode="numeric" maxlength="4" placeholder="rating" autocomplete="off"></label>
         <label class="slider-label">Hints <b id="hintsWVal">3</b></label>
-        <input id="hintsW" type="range" min="0" max="10" value="3">
+        <input id="hintsW" type="range" min="0" max="30" value="3">
       </div>
       <div class="pl-setup">
         <div class="pl-head"><span class="dot black"></span>Black</div>
-        <input id="nameB" type="text" maxlength="18" placeholder="Black player's name" autocomplete="off" autocapitalize="words" spellcheck="false">
+        <input id="nameB" type="text" maxlength="32" placeholder="Black player's name" autocomplete="off" autocapitalize="words" spellcheck="false" list="boki-players">
+        <label class="rate-label">chess.com <input id="rateB" class="rate" inputmode="numeric" maxlength="4" placeholder="rating" autocomplete="off"></label>
         <label class="slider-label">Hints <b id="hintsBVal">3</b></label>
-        <input id="hintsB" type="range" min="0" max="10" value="3">
+        <input id="hintsB" type="range" min="0" max="30" value="3">
       </div>
+    </div>
+    <datalist id="boki-players"></datalist>
+    <div id="known" class="known hidden"></div>
+    <div id="balance" class="balance hidden">
+      <p id="balanceLine"></p>
+      <div class="seg wrap" id="balanceMode" role="group" aria-label="How to balance the game">
+        <button type="button" data-mode="hints">Hints only</button>
+        <button type="button" data-mode="pieces">Piece odds only</button>
+        <button type="button" data-mode="both">Both</button>
+      </div>
+    </div>
+    <div class="odds-box">
+      <p id="oddsLive" class="odds-live"></p>
+      <p class="odds-help">Tap a piece to take it off that player.</p>
+      <div id="oddsPick"></div>
     </div>
 
     <div class="opts">
@@ -68,6 +87,7 @@
   </div>
   <aside id="side">
     <div class="status" id="status">White to move</div>
+    <div id="oddsNote" class="odds-note hidden"></div>
     <div id="moves"></div>
     <div class="toggles">
       <label class="opt small"><span><b>Eval bar</b></span><input type="checkbox" id="gEval" class="switch"></label>
@@ -83,6 +103,7 @@
 <!-- DIALOGS -->
 <div id="modal" class="modal hidden"><div class="dialog"><h2 id="mTitle"></h2><p id="mText"></p><div class="mbtns" id="mBtns"></div></div></div>
 <div id="ghost"></div>
+<script type="module" src="../shared/status.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>

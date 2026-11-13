@@ -1,0 +1,45 @@
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #dfc8f2;
+}
+.sky-art {
+  position: absolute;
+  inset: 0;
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-image: url("../images/boki-bg-portrait.jpg");
+  background-image: image-set(
+    url("../images/boki-bg-portrait.webp") type("image/webp"),
+    url("../images/boki-bg-portrait.jpg") type("image/jpeg")
+  );
+}
+@media (min-aspect-ratio: 1/1) {
+  .sky-art {
+    background-image: url("../images/boki-bg-landscape.jpg");
+    background-image: image-set(
+      url("../images/boki-bg-landscape.webp") type("image/webp"),
+      url("../images/boki-bg-landscape.jpg") type("image/jpeg")
+    );
+  }
+}
+@media (min-width: 1100px) and (hover: hover) and (pointer: fine) {
+  .sky-art {
+    inset: -4%;
+    animation: boki-drift 26s ease-in-out infinite alternate;
+  }
+}
+@keyframes boki-drift {
+  from { transform: translate3d(0, 0, 0) scale(1.045); }
+  to { transform: translate3d(-1.3%, 0.9%, 0) scale(1.045); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sky-art {
+    animation: none !important;
+    transform: none;
+    inset: 0;
+  }
+}

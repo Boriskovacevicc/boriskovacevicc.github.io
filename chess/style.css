@@ -16,7 +16,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0}
 /* ---------- setup ---------- */
 #setup{display:flex;align-items:center;justify-content:center;overflow:auto}
 .setup-card{width:min(760px,94vw);background:var(--panel);border-radius:28px;padding:36px 40px;box-shadow:0 20px 60px rgba(0,0,0,.4);margin:auto}
-.hub-link{display:inline-flex;align-items:center;min-height:44px;margin:-8px 0 2px;padding:2px 2px;color:#8b93a3;text-decoration:none;font-size:15px;font-weight:600}
+.hub-link{display:inline-flex;align-items:center;min-height:44px;margin:-8px 0 2px;padding:2px 2px;color:#b7c0d0;text-decoration:none;font-family:"Baloo 2",system-ui,sans-serif;font-size:16px;font-weight:600}
 .hub-link:hover,.hub-link:focus-visible{color:var(--text)}
 .hub-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
 .logo{display:flex;align-items:center;gap:14px;justify-content:center}
@@ -52,6 +52,23 @@ input[type=range]::-moz-range-thumb{width:34px;height:34px;border-radius:50%;bac
 .primary{background:var(--accent);color:#10140e}.primary:active{background:var(--accent2)}
 .ghost{background:transparent;border:2px solid #3a3f4b}
 .credits{color:#6c7280;font-size:12.5px;text-align:center;margin:18px 0 0}.credits a{color:#8b93a3}
+.rate-label{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;color:var(--muted);font-size:14px;font-weight:700}
+.pl-setup input.rate{width:96px;font-size:18px;padding:8px 10px;border-radius:12px;border:2px solid #3a3f4b;background:#15171c;color:var(--text);font-weight:700}
+.known{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.known button{min-height:36px;padding:4px 12px;border-radius:999px;background:var(--panel2);font-weight:700;font-size:14px}
+.balance,.odds-box{margin-top:14px;background:var(--panel2);border-radius:18px;padding:12px}
+#balanceLine{margin:0 0 8px;font-size:16px;font-weight:700}
+.odds-live,.odds-help{margin:8px 0 0;color:var(--muted);font-size:14px}
+.seg.wrap{flex-wrap:wrap}
+.seg.wrap button{font-size:14px;padding:10px 12px}
+#oddsPick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.odds-side{background:#15171c;border-radius:14px;padding:8px}
+.odds-side h3{margin:0 0 6px;font-size:14px}
+.odds-pieces{display:flex;flex-wrap:wrap;gap:6px}
+.odds-pieces button{width:46px;height:46px;border-radius:12px;background:var(--light);padding:4px}
+.odds-pieces button.off{opacity:.28;outline:2px solid var(--danger)}
+.odds-pieces img{width:100%;height:100%;display:block}
+.odds-note{font-size:14px;font-weight:700;text-align:center;color:var(--warn)}
 
 /* ---------- game layout ---------- */
 #game{display:flex;align-items:center;justify-content:center;gap:24px}

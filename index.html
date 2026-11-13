@@ -3,314 +3,192 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="description" content="Games for Boki and the family. Riki Tiki and chess, ready to play on an iPad, phone, or laptop." />
-  <meta name="theme-color" content="#143028" />
+  <meta name="description" content="Games for Boki and the family." />
+  <meta name="theme-color" content="#dfc8f2" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Boki Games" />
-  <meta name="application-name" content="Boki Games" />
   <title>Boki Games</title>
   <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png" />
   <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png" />
   <link rel="apple-touch-icon" href="icon-180.png" />
   <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="shared/fonts.css" />
+  <link rel="stylesheet" href="shared/sky.css" />
+  <link rel="stylesheet" href="shared/status.css" />
   <style>
     :root {
-      --felt: #143028;
-      --felt-deep: #0e241c;
-      --cream: #fbf6eb;
-      --cream-2: #f3ead6;
-      --gold: #e8d48b;
-      --gold-deep: #c9a227;
-      --ink: #1c1814;
-      --ink-soft: #5c5348;
-      --card: #fffdf8;
+      --ink: #2b2144;
       --safe-t: env(safe-area-inset-top, 0px);
       --safe-b: env(safe-area-inset-bottom, 0px);
-      --safe-l: env(safe-area-inset-left, 0px);
-      --safe-r: env(safe-area-inset-right, 0px);
     }
-
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { margin: 0; padding: 0; }
-    html { height: 100%; }
+    html, body { margin: 0; min-height: 100%; }
     body {
-      min-height: 100%;
+      min-height: 100dvh;
+      color: var(--ink);
+      font-family: "Baloo 2", system-ui, sans-serif;
+    }
+    .stage {
+      position: relative;
+      z-index: 1;
       min-height: 100dvh;
       display: flex;
-      color: var(--cream);
-      background:
-        radial-gradient(900px 420px at 50% -80px, rgba(232, 212, 139, 0.16), transparent 60%),
-        radial-gradient(700px 480px at 100% 100%, rgba(155, 35, 53, 0.14), transparent 55%),
-        linear-gradient(180deg, #1a4634 0%, var(--felt) 28%, var(--felt-deep) 100%);
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
-      -webkit-text-size-adjust: 100%;
-    }
-
-    main {
-      flex: 1;
-      width: min(1040px, 100%);
-      margin: 0 auto;
-      padding:
-        calc(28px + var(--safe-t))
-        calc(20px + var(--safe-r))
-        calc(28px + var(--safe-b))
-        calc(20px + var(--safe-l));
-      display: flex;
       flex-direction: column;
-      justify-content: safe center;
-    }
-
-    header { text-align: center; margin-bottom: 28px; }
-    .mark {
-      width: 72px;
-      height: 72px;
-      border-radius: 18px;
-      display: block;
-      margin: 0 auto 14px;
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+      align-items: center;
+      padding:
+        calc(18px + var(--safe-t))
+        20px
+        calc(28px + var(--safe-b));
     }
     h1 {
-      margin: 0;
-      font-family: Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
-      font-size: clamp(44px, 7vw, 72px);
-      font-weight: 700;
-      letter-spacing: 0.01em;
-      line-height: 1;
-      color: var(--gold);
-      text-shadow: 0 2px 0 rgba(80, 52, 8, 0.35);
+      margin: clamp(78px, 16vh, 150px) 0 0;
+      font-weight: 800;
+      font-size: clamp(42px, 9vw, 84px);
+      line-height: 0.95;
+      letter-spacing: -0.02em;
+      text-align: center;
+      color: #fff;
+      text-shadow:
+        0 2px 0 rgba(92, 54, 140, 0.18),
+        0 10px 28px rgba(74, 42, 120, 0.28);
     }
-    .tag {
-      margin: 12px auto 0;
-      max-width: 28ch;
-      font-size: 18px;
-      line-height: 1.4;
-      color: #f4efe4;
-    }
-    .rule {
-      width: 72px;
-      height: 3px;
-      margin: 16px auto 0;
-      border: 0;
-      border-radius: 999px;
-      background: linear-gradient(90deg, transparent, var(--gold-deep), var(--gold), var(--gold-deep), transparent);
-    }
-
-    .games {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 14px;
-    }
-
-    .tile {
+    main {
+      flex: 1;
+      width: min(440px, 100%);
       display: flex;
       align-items: center;
-      gap: 16px;
-      min-height: 124px;
-      padding: 16px;
-      border-radius: 24px;
-      background: var(--card);
+      justify-content: center;
+      padding: 18px 0 6vh;
+    }
+    .stack { width: min(100%, 420px); display: flex; flex-direction: column; gap: 14px; margin-inline: auto; }
+    .glass-btn, .glass-list {
+      background: rgba(255, 255, 255, 0.46);
+      -webkit-backdrop-filter: blur(18px) saturate(1.35);
+      backdrop-filter: blur(18px) saturate(1.35);
+      border: 1px solid rgba(255, 255, 255, 0.74);
+      box-shadow:
+        0 14px 34px rgba(72, 40, 112, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.82);
+    }
+    .glass-btn {
+      width: 100%;
+      min-height: 72px;
+      border-radius: 28px;
       color: var(--ink);
-      text-decoration: none;
-      border: 1px solid rgba(232, 212, 139, 0.55);
-      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-    .tile:hover { transform: translateY(-2px); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28); }
-    .tile:active { transform: scale(0.985); }
-    .tile:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
-
-    .tile-icon {
-      width: 84px;
-      height: 84px;
-      flex: none;
-      border-radius: 20px;
-      overflow: hidden;
-      background: #1c4332;
-      display: grid;
-      place-items: center;
-      font-size: 40px;
-      line-height: 1;
-    }
-    .tile-icon img { width: 100%; height: 100%; display: block; }
-    .tile-copy { min-width: 0; flex: 1; }
-    .tile h2 {
-      margin: 0 0 4px;
-      font-family: Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
-      font-size: 26px;
-      line-height: 1.15;
-      font-weight: 700;
-      letter-spacing: 0.01em;
-    }
-    .tile p {
-      margin: 0;
-      color: var(--ink-soft);
-      font-size: 16px;
-      line-height: 1.35;
-    }
-    .tile-go {
-      flex: none;
-      align-self: center;
-      min-width: 44px;
-      min-height: 44px;
-      padding: 0 12px;
-      border-radius: 999px;
-      display: inline-flex;
+      font: 800 clamp(28px, 6vw, 36px)/1 "Baloo 2", system-ui, sans-serif;
+      display: flex;
       align-items: center;
       justify-content: center;
-      background: #173528;
-      color: var(--gold);
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
+      gap: 10px;
+      cursor: pointer;
     }
-
-    .empty {
-      text-align: center;
-      color: #f4efe4;
-      font-size: 18px;
+    .glass-btn:focus-visible, .item:focus-visible {
+      outline: 3px solid #fff;
+      outline-offset: 3px;
     }
-
-    footer {
-      margin-top: 26px;
-      text-align: center;
+    .chev {
+      width: 12px;
+      height: 12px;
+      border-right: 3px solid var(--ink);
+      border-bottom: 3px solid var(--ink);
+      transform: rotate(45deg) translateY(-2px);
+      transition: transform .2s ease;
     }
-    footer p {
-      margin: 0 auto;
-      max-width: 42ch;
-      color: #efe6d4;
-      font-size: 15px;
-      line-height: 1.45;
+    .glass-btn[aria-expanded="true"] .chev { transform: rotate(225deg) translateY(-2px); }
+    .fold {
+      display: grid;
+      grid-template-rows: 0fr;
+      opacity: 0;
+      transition: grid-template-rows .22s ease, opacity .22s ease, margin .22s ease;
+      margin-top: 0;
     }
-
-    @media (min-width: 760px) {
-      main { padding-left: calc(32px + var(--safe-l)); padding-right: calc(32px + var(--safe-r)); }
-      header { margin-bottom: 36px; }
-      .mark { width: 88px; height: 88px; border-radius: 22px; }
-      .tag { font-size: 20px; }
-      .games { grid-template-columns: 1fr 1fr; gap: 20px; }
-      .tile { min-height: 156px; padding: 20px; gap: 16px; border-radius: 28px; }
-      .tile-icon { width: 92px; height: 92px; border-radius: 22px; font-size: 44px; }
-      .tile h2 { font-size: 28px; }
-      .tile p { font-size: 17px; }
-      footer { margin-top: 32px; }
-      footer p { font-size: 16px; }
+    .fold.open { grid-template-rows: 1fr; opacity: 1; margin-top: 10px; }
+    .fold-inner { min-height: 0; overflow: hidden; }
+    .glass-list { border-radius: 26px; padding: 8px; }
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 64px;
+      padding: 8px 12px;
+      border-radius: 18px;
+      text-decoration: none;
+      color: var(--ink);
     }
-
-    /* Room to spare (iPad portrait and landscape): each game is a big card. */
-    @media (min-width: 760px) and (min-height: 700px) {
-      .tile {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        min-height: 0;
-        padding: 28px 28px 24px;
-        gap: 12px;
-      }
-      .tile-icon { width: 112px; height: 112px; border-radius: 26px; }
-      .tile h2 { font-size: clamp(28px, 3vw, 36px); }
-      .tile p { font-size: 18px; max-width: 26ch; margin-inline: auto; }
-      .tile-go { margin-top: 8px; }
+    .item:hover, .item:focus-visible { background: rgba(255, 255, 255, 0.45); }
+    .item img, .item .emoji {
+      width: 48px;
+      height: 48px;
+      flex: none;
+      border-radius: 14px;
+      object-fit: cover;
+      display: grid;
+      place-items: center;
+      font-size: 28px;
     }
-
-    @media (max-height: 500px) {
-      main { justify-content: flex-start; }
-      header { margin-bottom: 12px; }
-      .mark { width: 48px; height: 48px; border-radius: 12px; margin-bottom: 6px; }
-      h1 { font-size: 36px; }
-      .tag { margin-top: 4px; font-size: 15px; }
-      .rule { margin-top: 8px; }
-      footer { margin-top: 12px; }
-      .tile { min-height: 96px; padding: 12px; gap: 12px; }
-      .tile-icon { width: 64px; height: 64px; border-radius: 16px; }
-      .tile h2 { font-size: 20px; }
-      .tile p { font-size: 14px; }
+    .item strong { display: block; font-size: 20px; font-weight: 800; line-height: 1.1; }
+    .item small { display: block; margin-top: 2px; font-size: 14px; font-weight: 600; color: #53486a; }
+    @media (min-aspect-ratio: 1/1) and (max-height: 820px) {
+      h1 { margin-top: 30vh; }
     }
-
-    @media (max-width: 480px) {
-      .tile-go { display: none; }
-      .tile { gap: 14px; padding: 16px; }
-      .tile-icon { width: 76px; height: 76px; border-radius: 18px; }
-      .tile h2 { font-size: 23px; }
+    @media (min-aspect-ratio: 1/1) and (min-height: 821px) {
+      h1 { margin-top: 18vh; }
     }
-
+    @media (max-width: 520px) {
+      main { width: min(340px, 90vw); }
+    }
+    @media (max-width: 380px) {
+      h1 { font-size: 40px; }
+      .glass-btn { min-height: 64px; border-radius: 24px; }
+      .item strong { font-size: 18px; }
+    }
+    @media (min-width: 900px) and (min-height: 700px) {
+      .stack { gap: 18px; }
+      .glass-btn { min-height: 84px; border-radius: 32px; }
+    }
+    @media (max-height: 520px) {
+      h1 { margin-top: 4px; font-size: 36px; }
+      main { padding-top: 8px; padding-bottom: 8px; }
+      .glass-btn { min-height: 56px; font-size: 26px; }
+    }
     @media (prefers-reduced-motion: reduce) {
-      .tile { transition: none; }
+      .fold, .chev { transition: none; }
     }
   </style>
 </head>
 <body>
-  <main>
+  <div class="sky" aria-hidden="true"><div class="sky-art"></div></div>
+  <div class="stage">
     <header>
-      <img class="mark" src="icon-180.png" alt="" width="88" height="88" />
       <h1>Boki Games</h1>
-      <p class="tag">For Boki and the family.</p>
-      <hr class="rule" />
     </header>
-    <div id="games" class="games"></div>
-    <p id="games-empty" class="empty" hidden>No games on the list yet.</p>
-    <footer>
-      <p>Play on an iPad, phone, or laptop. Add this page to your home screen to keep it close.</p>
-    </footer>
-  </main>
+    <main>
+      <div class="stack" id="stack">
+        <div class="menu">
+          <button type="button" id="games-btn" class="glass-btn" aria-expanded="false" aria-controls="games-panel">
+            Games <span class="chev" aria-hidden="true"></span>
+          </button>
+          <div id="games-panel" class="fold" role="region" aria-label="Games" inert>
+            <div class="fold-inner">
+              <div class="glass-list" id="games-list"></div>
+            </div>
+          </div>
+        </div>
+        <div class="menu">
+          <button type="button" id="boards-btn" class="glass-btn" aria-expanded="false" aria-controls="boards-panel">
+            Leaderboards <span class="chev" aria-hidden="true"></span>
+          </button>
+          <div id="boards-panel" class="fold" role="region" aria-label="Leaderboards" inert>
+            <div class="fold-inner">
+              <div class="glass-list" id="boards-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
   <script src="games.js"></script>
-  <script>
-    (function () {
-      var list = document.getElementById("games");
-      var empty = document.getElementById("games-empty");
-      var games = Array.isArray(window.BOKI_GAMES) ? window.BOKI_GAMES : [];
-      var shown = 0;
-
-      function text(value) {
-        return document.createTextNode(value == null ? "" : String(value));
-      }
-
-      games.forEach(function (game) {
-        if (!game || typeof game !== "object") return;
-        var href = String(game.href || "").trim();
-        var name = String(game.name || "").trim();
-        if (!name || !href || /^(?:[a-z]+:|\/\/)/i.test(href)) return;
-
-        var link = document.createElement("a");
-        link.className = "tile";
-        link.href = href;
-
-        var icon = document.createElement("span");
-        icon.className = "tile-icon";
-        var iconSrc = String(game.icon || "").trim();
-        if (/\.(?:svg|png|webp|jpe?g|gif)(?:$|\?)/i.test(iconSrc)) {
-          var img = document.createElement("img");
-          img.src = iconSrc;
-          img.alt = "";
-          icon.appendChild(img);
-        } else {
-          icon.appendChild(text(iconSrc || "🎲"));
-        }
-
-        var copy = document.createElement("span");
-        copy.className = "tile-copy";
-        var heading = document.createElement("h2");
-        heading.appendChild(text(name));
-        var blurb = document.createElement("p");
-        blurb.appendChild(text(game.description || ""));
-        copy.appendChild(heading);
-        copy.appendChild(blurb);
-
-        var go = document.createElement("span");
-        go.className = "tile-go";
-        go.setAttribute("aria-hidden", "true");
-        go.textContent = "Play";
-
-        link.appendChild(icon);
-        link.appendChild(copy);
-        link.appendChild(go);
-        list.appendChild(link);
-        shown += 1;
-      });
-
-      empty.hidden = shown > 0;
-    })();
-  </script>
+  <script type="module" src="hub.js"></script>
 </body>
 </html>

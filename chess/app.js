@@ -1,4 +1,6 @@
 import { Chess } from './vendor/chess.js';
+import { suggestBalance, buildOddsFen, toggleRemoval, PIECE_CHOICES } from './balance.js';
+import { listPlayers, rememberPlayer, recordChessResult, removeChessResult, nameKey, peekPlayers } from '../shared/store.js';
 
 /* =========================================================
    Boki Chess — pass-and-play chess with Stockfish eval & hints
@@ -100,22 +102,151 @@ let skipSlide = false;
 const defaults = () => ({
   names: { w: '', b: '' }, hintsStart: { w: 3, b: 3 }, hints: { w: 3, b: 3 },
   moves: [], evalOn: false, autoFlip: true, flipStyle: 'table', over: false, result: null,
+  startFen: null, oddsLabel: '', resultId: null,
 });
 function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
 function load() { try { return JSON.parse(localStorage.getItem(STORE)); } catch (e) { return null; } }
 const nameOf = (c) => (S.names[c] || (c === 'w' ? 'White' : 'Black'));
 
 /* ---------------- Setup screen ---------------- */
+let directory = [];
+let balanceMode = 'hints';
+let removed = [];
+let oddsManual = false;
+let focusColor = 'W';
+
+function updHints() {
+  $('hintsWVal').textContent = $('hintsW').value;
+  $('hintsBVal').textContent = $('hintsB').value;
+}
+function readRate(color) {
+  const n = Number($('rate' + color).value);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+}
+function ratingFor(name) {
+  const found = directory.find((p) => p && p.nameKey === nameKey(name));
+  return found && found.chesscom ? String(found.chesscom) : '';
+}
+function fillDirectory() {
+  const list = $('boki-players');
+  list.replaceChildren();
+  directory.forEach((player) => {
+    const option = document.createElement('option');
+    option.value = player.name;
+    list.appendChild(option);
+  });
+  const known = $('known');
+  known.replaceChildren();
+  directory.forEach((player) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = player.name;
+    btn.onclick = () => {
+      const input = $('name' + focusColor);
+      input.value = player.name;
+      const rate = $('rate' + focusColor);
+      if (!rate.dataset.dirty) rate.value = player.chesscom ? String(player.chesscom) : '';
+      updateBalance();
+    };
+    known.appendChild(btn);
+  });
+  known.classList.toggle('hidden', directory.length === 0);
+}
+function renderOdds() {
+  const box = $('oddsPick');
+  box.replaceChildren();
+  for (const color of ['w', 'b']) {
+    const side = document.createElement('div');
+    side.className = 'odds-side';
+    const title = document.createElement('h3');
+    title.textContent = color === 'w' ? 'White' : 'Black';
+    const pieces = document.createElement('div');
+    pieces.className = 'odds-pieces';
+    PIECE_CHOICES.forEach((choice) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const off = removed.some((item) => item.color === color && item.id === choice.id);
+      btn.classList.toggle('off', off);
+      btn.setAttribute('aria-pressed', off ? 'true' : 'false');
+      btn.setAttribute('aria-label', (off ? 'Put back ' : 'Remove ') + (color === 'w' ? 'White ' : 'Black ') + choice.word);
+      const img = document.createElement('img');
+      img.src = `pieces/${color}${choice.glyph}.svg`;
+      img.alt = '';
+      btn.appendChild(img);
+      btn.onclick = () => {
+        oddsManual = true;
+        removed = toggleRemoval(removed, color, choice.id);
+        renderOdds();
+      };
+      pieces.appendChild(btn);
+    });
+    side.append(title, pieces);
+    box.appendChild(side);
+  }
+  const built = buildOddsFen(removed);
+  $('oddsLive').textContent = built.label;
+}
+function markMode() {
+  $('balanceMode').querySelectorAll('button').forEach((btn) => btn.classList.toggle('on', btn.dataset.mode === balanceMode));
+}
+function updateBalance() {
+  const white = readRate('W');
+  const black = readRate('B');
+  if (!white || !black) {
+    $('balance').classList.add('hidden');
+    renderOdds();
+    return;
+  }
+  $('balance').classList.remove('hidden');
+  const suggestion = suggestBalance({
+    whiteName: $('nameW').value, blackName: $('nameB').value,
+    whiteRating: white, blackRating: black, mode: balanceMode,
+  });
+  $('balanceLine').textContent = suggestion.line;
+  markMode();
+  if (!oddsManual) removed = suggestion.removed.map((item) => ({ ...item }));
+  if (suggestion.hints.w != null) {
+    $('hintsW').value = String(suggestion.hints.w);
+    $('hintsB').value = String(suggestion.hints.b);
+    updHints();
+  }
+  renderOdds();
+}
+function onNameInput(color) {
+  focusColor = color;
+  const rate = $('rate' + color);
+  if (!rate.dataset.dirty) rate.value = ratingFor($('name' + color).value);
+  updateBalance();
+}
+async function rememberSetupNames() {
+  const tasks = [];
+  for (const color of ['W', 'B']) {
+    const name = $('name' + color).value.trim();
+    if (!name) continue;
+    tasks.push(rememberPlayer(name, { chesscom: readRate(color) || null }));
+  }
+  if (!tasks.length) return;
+  directory = [];
+  await Promise.all(tasks);
+  try { directory = await listPlayers(); } catch (e) { directory = []; }
+  fillDirectory();
+}
 function initSetup() {
   const saved = load();
   const prev = saved || defaults();
+  balanceMode = 'hints';
+  oddsManual = false;
+  removed = [];
   $('nameW').value = prev.names?.w || ''; $('nameB').value = prev.names?.b || '';
+  $('rateW').value = ''; $('rateB').value = '';
+  $('rateW').dataset.dirty = ''; $('rateB').dataset.dirty = '';
+  $('rateW').value = ratingFor($('nameW').value);
+  $('rateB').value = ratingFor($('nameB').value);
   $('hintsW').value = prev.hintsStart?.w ?? 3; $('hintsB').value = prev.hintsStart?.b ?? 3;
   $('optEval').checked = !!prev.evalOn;  // default OFF
   $('optFlip').checked = prev.autoFlip !== false;
   setFlipStyle(prev.flipStyle || 'table');
-  const upd = () => { $('hintsWVal').textContent = $('hintsW').value; $('hintsBVal').textContent = $('hintsB').value; };
-  $('hintsW').oninput = upd; $('hintsB').oninput = upd; upd();
+  $('hintsW').oninput = updHints; $('hintsB').oninput = updHints; updHints();
   $('flipStyle').querySelectorAll('button').forEach((b) => (b.onclick = () => setFlipStyle(b.dataset.v)));
   $('resumeBtn').classList.toggle('hidden', !(saved && saved.moves && saved.moves.length && !saved.over));
   $('resumeBtn').onclick = () => startGame(saved);
@@ -126,8 +257,15 @@ function initSetup() {
     st.hints = { ...st.hintsStart };
     st.evalOn = $('optEval').checked; st.autoFlip = $('optFlip').checked;
     st.flipStyle = $('flipStyle').querySelector('.on').dataset.v;
+    if (removed.length) {
+      const built = buildOddsFen(removed);
+      st.startFen = built.fen;
+      st.oddsLabel = built.label;
+    }
+    rememberSetupNames();
     startGame(st);
   };
+  updateBalance();
 }
 function setFlipStyle(v) {
   $('flipStyle').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
@@ -140,7 +278,8 @@ function showSetup() { engine.cancel(); $('game').classList.add('hidden'); $('se
 /* ---------------- Game lifecycle ---------------- */
 function startGame(st) {
   S = Object.assign(defaults(), st);
-  chess = new Chess();
+  try { chess = S.startFen ? new Chess(S.startFen) : new Chess(); }
+  catch (e) { chess = new Chess(); S.startFen = null; S.oddsLabel = ''; }
   for (const m of S.moves) { try { chess.move(m); } catch (e) { break; } }
   S.moves = chess.history({ verbose: true }).map((m) => ({ from: m.from, to: m.to, promotion: m.promotion }));
   selected = null; hint = null; hintBusy = false; lastEval = null; animateFrom = null;
@@ -181,7 +320,15 @@ function doMove(from, to, promotion) {
 
 function checkGameOver() {
   S.over = chess.isGameOver();
-  if (!S.over) { S.result = null; return; }
+  if (!S.over) {
+    if (S.resultId) {
+      const id = S.resultId;
+      S.resultId = null;
+      removeChessResult(id).catch(() => {});
+    }
+    S.result = null;
+    return;
+  }
   if (chess.isCheckmate()) {
     const winner = chess.turn() === 'w' ? 'b' : 'w';
     S.result = { score: winner === 'w' ? '1-0' : '0-1', title: `Checkmate! ${nameOf(winner)} wins`, text: `${nameOf(winner)} (${winner === 'w' ? 'White' : 'Black'}) checkmated ${nameOf(chess.turn())}.` };
@@ -192,6 +339,20 @@ function checkGameOver() {
     else if (chess.isInsufficientMaterial()) why = 'Insufficient material';
     else if (chess.isDrawByFiftyMoves()) why = '50-move rule';
     S.result = { score: '½-½', title: 'Draw', text: `${why}. Nobody wins this one.` };
+  }
+  if (!S.resultId) {
+    S.resultId = 'cg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const draw = S.result.score === '½-½';
+    const white = S.names.w || 'White';
+    const black = S.names.b || 'Black';
+    recordChessResult({
+      id: S.resultId,
+      date: new Date().toISOString(),
+      white, black,
+      result: draw ? '1/2-1/2' : S.result.score,
+      winner: draw ? null : (S.result.score === '1-0' ? white : black),
+      loser: draw ? null : (S.result.score === '1-0' ? black : white),
+    }).catch(() => {});
   }
 }
 
@@ -223,6 +384,11 @@ function applyOrientation() {
 function sqName(r, f) { return FILES[f] + (8 - r); }   // r: 0 = rank 8 (white orientation)
 function render() {
   renderBoard(); renderArrows(); renderMoves(); renderStatus(); renderCards(); renderEvalBar();
+  const note = $('oddsNote');
+  if (note) {
+    note.textContent = S && S.oddsLabel ? S.oddsLabel : '';
+    note.classList.toggle('hidden', !(S && S.oddsLabel));
+  }
   $('undoBtn').disabled = S.moves.length === 0;
 }
 function renderBoard() {
@@ -503,8 +669,43 @@ function bind() {
   document.addEventListener('gesturestart', (e) => e.preventDefault());
 }
 bind();
-const saved = load();
-if (saved && saved.moves && saved.moves.length && !saved.over) startGame(saved); else initSetup();
+function wireSetup() {
+  for (const color of ['W', 'B']) {
+    $('name' + color).addEventListener('focus', () => { focusColor = color; });
+    $('name' + color).addEventListener('input', () => onNameInput(color));
+    $('name' + color).addEventListener('change', () => rememberSetupNames());
+    $('rate' + color).addEventListener('input', () => {
+      $('rate' + color).dataset.dirty = '1';
+      oddsManual = false;
+      updateBalance();
+    });
+  }
+  $('balanceMode').querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      balanceMode = btn.dataset.mode;
+      oddsManual = false;
+      updateBalance();
+    });
+  });
+}
+wireSetup();
+async function boot() {
+  directory = peekPlayers();
+  fillDirectory();
+  const saved = load();
+  if (saved && saved.moves && saved.moves.length && !saved.over) startGame(saved);
+  else initSetup();
+  try {
+    directory = await listPlayers();
+    fillDirectory();
+    if (!$('setup').classList.contains('hidden')) {
+      if (!$('rateW').dataset.dirty && !$('rateW').value) $('rateW').value = ratingFor($('nameW').value);
+      if (!$('rateB').dataset.dirty && !$('rateB').value) $('rateB').value = ratingFor($('nameB').value);
+      updateBalance();
+    }
+  } catch (e) { /* names already work from this device */ }
+}
+boot();
 
 // test hooks
 window.__app = { get chess() { return chess; }, get S() { return S; }, doMove, requestHint, undo, get hint() { return hint; } };

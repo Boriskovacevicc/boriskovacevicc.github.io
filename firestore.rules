@@ -1,0 +1,86 @@
+rules_version = '2';
+// Family rules for Boki Games.
+// Reads and writes need Anonymous sign-in (no passwords).
+// Deletes are blocked, except a diagnostics doc used for a connection check,
+// so a mistake cannot wipe the family's history.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function text(data, field, min, max) {
+      return field in data
+        && data[field] is string
+        && data[field].size() >= min
+        && data[field].size() <= max;
+    }
+
+    match /players/{id} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && id.size() > 0
+        && id.size() < 120
+        && request.resource.data.nameKey == id
+        && text(request.resource.data, 'id', 1, 80)
+        && text(request.resource.data, 'name', 1, 60)
+        && text(request.resource.data, 'nameKey', 1, 80)
+        && (!('chesscom' in request.resource.data)
+            || request.resource.data.chesscom == null
+            || (request.resource.data.chesscom is int
+                && request.resource.data.chesscom >= 1
+                && request.resource.data.chesscom <= 4000))
+        && request.resource.data.keys().size() <= 12;
+      allow delete: if false;
+    }
+
+    match /rikiProfiles/{id} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && id == request.resource.data.id
+        && text(request.resource.data, 'id', 1, 80)
+        && text(request.resource.data, 'name', 1, 60)
+        && request.resource.data.keys().size() <= 12;
+      allow delete: if false;
+    }
+
+    match /rikiMatches/{id} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && id == request.resource.data.id
+        && text(request.resource.data, 'id', 1, 80)
+        && request.resource.data.players is list
+        && request.resource.data.players.size() >= 2
+        && request.resource.data.players.size() <= 6
+        && (!('results' in request.resource.data) || (request.resource.data.results is list && request.resource.data.results.size() <= 40))
+        && (!('rounds' in request.resource.data) || (request.resource.data.rounds is list && request.resource.data.rounds.size() <= 40))
+        && request.resource.data.keys().size() <= 16;
+      allow delete: if false;
+    }
+
+    match /chessResults/{id} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && id == request.resource.data.id
+        && text(request.resource.data, 'id', 1, 80)
+        && text(request.resource.data, 'white', 1, 60)
+        && text(request.resource.data, 'black', 1, 60)
+        && request.resource.data.result in ['1-0', '0-1', '1/2-1/2']
+        && (!('removed' in request.resource.data) || request.resource.data.removed is bool)
+        && (!('winner' in request.resource.data) || request.resource.data.winner == null || request.resource.data.winner is string)
+        && (!('loser' in request.resource.data) || request.resource.data.loser == null || request.resource.data.loser is string)
+        && request.resource.data.keys().size() <= 16;
+      allow delete: if false;
+    }
+
+    // Short-lived connection checks. The site deletes these itself.
+    match /diagnostics/{id} {
+      allow read, create, delete: if signedIn() && id.matches('^diag-[A-Za-z0-9_-]{1,40}$');
+      allow update: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
