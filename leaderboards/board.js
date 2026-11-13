@@ -1,5 +1,5 @@
-import { loadRiki, listChessResults, listChessSeries } from "../shared/store.js";
-import { rikiStandings, chessStandings } from "../shared/standings.js";
+import { loadRiki, loadTablice, listChessResults, listChessSeries } from "../shared/store.js";
+import { rikiStandings, chessStandings, tabliceStandings } from "../shared/standings.js";
 import "../shared/status.js";
 
 const kind = document.body.dataset.board;
@@ -35,7 +35,19 @@ function render(headers, rows) {
   card.appendChild(table);
 }
 
-if (kind === "chess") {
+if (kind === "tablice") {
+  const data = await loadTablice();
+  const rows = tabliceStandings(data && data.matches);
+  render(["", "Player", "Wins", "Games", "Win %", "Avg / round", "Tablas"], rows.map((row, index) => [
+    String(index + 1),
+    row.name,
+    String(row.wins),
+    String(row.games),
+    row.games ? Math.round(row.rate * 100) + "%" : "–",
+    row.rounds ? (Math.round(row.avg * 10) / 10).toString() : "–",
+    String(row.tablas),
+  ]));
+} else if (kind === "chess") {
   const rows = chessStandings(await listChessResults(), await listChessSeries());
   render(["", "Player", "Wins", "Series", "Win rate", "Games"], rows.map((row, index) => [
     String(index + 1),

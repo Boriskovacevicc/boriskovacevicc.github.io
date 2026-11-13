@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#dfc8f2" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Boki Tablice" />
+  <title>Boki Tablice</title>
+  <link rel="icon" href="../icons/tablice.svg" />
+  <link rel="stylesheet" href="../shared/fonts.css" />
+  <link rel="stylesheet" href="../shared/sky.css" />
+  <link rel="stylesheet" href="../shared/status.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="sky" aria-hidden="true"><div class="sky-art"></div></div>
+  <div class="app">
+    <section id="screen-setup" class="screen active">
+      <div class="topbar">
+        <a class="hub-link" href="../">Boki Games</a>
+        <div class="top-actions">
+          <button type="button" class="icon-btn" id="goto-history">History</button>
+          <button type="button" class="icon-btn" id="goto-help">Help</button>
+        </div>
+      </div>
+      <div class="setup-wrap">
+        <div class="hero">
+          <h1>Boki Tablice</h1>
+          <p>A family scorekeeper for Tablice.</p>
+        </div>
+        <div class="panel">
+          <div class="label">Players</div>
+          <div class="count-row">
+            <button type="button" class="step-btn" id="count-minus" aria-label="Fewer players">−</button>
+            <div class="step-value" id="count-value">4</div>
+            <button type="button" class="step-btn" id="count-plus" aria-label="More players">+</button>
+            <span id="count-meta"></span>
+          </div>
+          <div id="mode-wrap">
+            <div class="label">With four players</div>
+            <div class="choice-row" id="mode-row">
+              <button type="button" class="choice" data-mode="pairs">Pairs</button>
+              <button type="button" class="choice" data-mode="solo">Individuals</button>
+            </div>
+          </div>
+          <div class="label">First to</div>
+          <div class="choice-row" id="target-row">
+            <button type="button" class="choice" data-target="51">51</button>
+            <button type="button" class="choice" data-target="101">101</button>
+          </div>
+          <div class="label">Names</div>
+          <div class="names" id="name-fields"></div>
+          <datalist id="boki-names"></datalist>
+          <div id="dealer-wrap"></div>
+          <p class="help" id="deal-help"></p>
+          <div class="setup-actions">
+            <button type="button" class="btn btn-primary" id="start-btn">Start game</button>
+            <button type="button" class="btn btn-ghost" id="resume-btn" hidden>Continue saved game</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="screen-game" class="screen">
+      <div class="topbar">
+        <div class="brand"><h1>Boki Tablice</h1></div>
+        <div class="top-actions">
+          <button type="button" class="icon-btn" id="game-help">Help</button>
+          <button type="button" class="icon-btn danger" id="new-game-btn">New game</button>
+        </div>
+      </div>
+      <div class="banner" id="banner"></div>
+      <div class="totals" id="totals"></div>
+      <div class="game-grid">
+        <div class="panel" id="history-card"></div>
+        <div class="panel action-card" id="action-card"></div>
+      </div>
+    </section>
+
+    <section id="screen-results" class="screen">
+      <div class="topbar">
+        <div class="brand"><h1>Boki Tablice</h1></div>
+        <div class="top-actions">
+          <button type="button" class="icon-btn danger" id="results-new">New game</button>
+        </div>
+      </div>
+      <div class="results-wrap"><div class="panel results-card" id="results-card"></div></div>
+    </section>
+
+    <section id="screen-history" class="screen">
+      <div class="topbar">
+        <div class="brand"><h1>History</h1></div>
+        <button type="button" class="icon-btn" id="history-back">Back</button>
+      </div>
+      <div class="results-wrap"><div class="panel" id="history-list"></div></div>
+    </section>
+
+    <section id="screen-profile" class="screen">
+      <div class="topbar">
+        <div class="brand"><h1>Profile</h1></div>
+        <button type="button" class="icon-btn" id="profile-back">Back</button>
+      </div>
+      <div class="results-wrap"><div class="panel" id="profile-card"></div></div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="warn-modal" role="dialog" aria-modal="true" aria-labelledby="warn-title">
+    <div class="modal">
+      <h2 id="warn-title">Check the cards</h2>
+      <p id="warn-text"></p>
+      <div class="setup-actions">
+        <button type="button" class="btn btn-primary" id="warn-fix">Fix</button>
+        <button type="button" class="btn btn-ghost" id="warn-anyway">Save anyway</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="modal">
+      <h2 id="confirm-title">Start a new game?</h2>
+      <p>This clears the round you are playing. Finished games stay in History.</p>
+      <div class="setup-actions">
+        <button type="button" class="btn btn-primary" id="confirm-yes">Yes, start new game</button>
+        <button type="button" class="btn btn-ghost" id="confirm-no">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <div class="modal">
+      <h2 id="help-title">How scoring works</h2>
+      <p>Enter each side’s card points. There are 22. With two or four players, the side with the most cards gets 3 more, so the cards add up to 25, or 22 on a tie. Three players have no bonus.</p>
+      <p>Tabla is an extra point for that player, added on top. It is not part of the 22 or 25. A side that finishes a round on 90 or more (40 in a game to 51) cannot score more tablas after that.</p>
+      <p>If 22 card points cannot be shared without someone reaching the target, the round is marked Final round and the total is not checked. Finish game saves a partial score and ends the match only when a side has got there.</p>
+      <button type="button" class="btn btn-primary" id="help-close">Got it</button>
+    </div>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

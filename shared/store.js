@@ -1,6 +1,6 @@
 /**
- * Async storage for the shared player directory, Riki Tiki history
- * (profiles and finished matches) and chess results.
+ * Async storage for the shared player directory, Riki Tiki history,
+ * Tablice history, and chess results.
  *
  * localStorage is the offline cache. When Firebase is configured and this
  * runs in a browser, the same records are merged with Firestore.
@@ -14,6 +14,7 @@ export const STORE_KEYS = {
   rikiV1: "rikki-tikki-v1",
   chessResults: "boki-chess-results-v1",
   chessSeries: "boki-chess-series-v1",
+  tablice: "boki-tablice-v1",
   meta: "boki-store-meta",
 };
 
@@ -106,6 +107,15 @@ export function mergePlayers(localList, remoteList) {
   return [...map.values()];
 }
 
+function mergeTablice(local, remoteProfiles, remoteMatches) {
+  const base = local && typeof local === "object" ? { ...local } : { version: 1, profiles: [], matches: [] };
+  base.profiles = mergeById(base.profiles, remoteProfiles).filter((p) => p && p.id && p.name);
+  base.matches = mergeById(base.matches, remoteMatches).filter((m) => m && m.id && Array.isArray(m.players));
+  base.matches.sort((a, b) => String(b.endedAt || "").localeCompare(String(a.endedAt || "")));
+  if (!base.version) base.version = 1;
+  return base;
+}
+
 function mergeRiki(local, remoteProfiles, remoteMatches) {
   const base = local && typeof local === "object" ? { ...local } : { version: 2, profiles: [], matches: [] };
   base.profiles = mergeById(base.profiles, remoteProfiles).filter((p) => p && p.id && p.name && !p.removed);
@@ -164,6 +174,17 @@ async function runCloudBoot() {
     cacheSet(STORE_KEYS.chessSeries, series);
     stamp("chessSeries");
     for (const row of series) await fb.pushChessSeries(row);
+
+    const remoteTabliceProfiles = await fb.pullTabliceProfiles();
+    const remoteTabliceMatches = await fb.pullTabliceMatches();
+    const localTablice = cacheGet(STORE_KEYS.tablice);
+    if (localTablice || remoteTabliceProfiles.length || remoteTabliceMatches.length) {
+      const merged = mergeTablice(localTablice, remoteTabliceProfiles, remoteTabliceMatches);
+      cacheSet(STORE_KEYS.tablice, merged);
+      stamp("tablice");
+      for (const profile of merged.profiles || []) await fb.pushTabliceProfile(withStamp(profile));
+      for (const match of merged.matches || []) await fb.pushTabliceMatch(withStamp(match));
+    }
     fb.note(navigator.onLine ? "synced" : "offline");
   } catch (error) {
     fb.note("offline", error && error.code ? error.code : "sync");
@@ -269,6 +290,32 @@ export async function saveRiki(snapshot) {
       }
       for (const match of snapshot.matches || []) {
         if (match && match.id) await fb.pushMatch(withStamp(match));
+      }
+      fb.note(navigator.onLine ? "synced" : "offline");
+    } catch (e) {
+      try { (await firebaseApi()).note("offline"); } catch (err) { /* ignore */ }
+    }
+  }
+  return snapshot;
+}
+
+export async function loadTablice() {
+  await cloudBoot();
+  const data = cacheGet(STORE_KEYS.tablice);
+  return data && typeof data === "object" ? data : null;
+}
+
+export async function saveTablice(snapshot) {
+  cacheSet(STORE_KEYS.tablice, snapshot);
+  stamp("tablice");
+  if (cloudOn() && snapshot) {
+    try {
+      const fb = await firebaseApi();
+      for (const profile of snapshot.profiles || []) {
+        if (profile && profile.id && profile.name) await fb.pushTabliceProfile(withStamp(profile));
+      }
+      for (const match of snapshot.matches || []) {
+        if (match && match.id) await fb.pushTabliceMatch(withStamp(match));
       }
       fb.note(navigator.onLine ? "synced" : "offline");
     } catch (e) {

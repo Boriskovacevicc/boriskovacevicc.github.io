@@ -165,6 +165,21 @@ export async function pushChessSeries(row) {
   await put("chessSeries", row.id, row);
 }
 
+export async function pullTabliceProfiles() {
+  return readAll("tabliceProfiles");
+}
+export async function pullTabliceMatches() {
+  return readAll("tabliceMatches");
+}
+export async function pushTabliceProfile(profile) {
+  if (!profile || !profile.id) return;
+  await put("tabliceProfiles", profile.id, profile);
+}
+export async function pushTabliceMatch(match) {
+  if (!match || !match.id) return;
+  await put("tabliceMatches", match.id, match);
+}
+
 /** Used by the live check. Writes a diagnostics doc and deletes it. */
 export async function probeDiagnostics(id) {
   await ready();
