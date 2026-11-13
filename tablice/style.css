@@ -1,0 +1,153 @@
+:root {
+  --felt: #1c4332;
+  --cream: #fbf6eb;
+  --cream-2: #f3ead4;
+  --cream-3: #e7d8b5;
+  --gold: #c9a227;
+  --gold-2: #e8d48b;
+  --gold-deep: #8c6d12;
+  --berry: #9b2335;
+  --ink: #1c1814;
+  --ink-soft: #5a5248;
+  --muted: #8a7f70;
+  --good: #1f6b45;
+  --good-bg: #e5f3eb;
+  --bad-bg: #f8e8ea;
+  --white: #fffdf8;
+  --shadow: 0 16px 40px rgba(40, 20, 40, 0.18);
+  --tap: 48px;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+  background: #dfc8f2;
+}
+button, input { font: inherit; }
+button { touch-action: manipulation; cursor: pointer; border: 0; background: none; color: inherit; }
+button:disabled { cursor: not-allowed; opacity: 0.45; }
+[hidden] { display: none !important; }
+h1, h2, h3, .brand, .hero h1 { font-family: "Baloo 2", system-ui, sans-serif; }
+.sky-art { animation: none !important; transform: none !important; inset: 0 !important; }
+.app {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: calc(14px + var(--safe-t)) 14px calc(20px + var(--safe-b));
+}
+.screen { display: none; }
+.screen.active { display: block; }
+.hub-link {
+  display: inline-flex; align-items: center; min-height: 44px;
+  color: #fffdf8; text-decoration: none; font-family: "Baloo 2", system-ui, sans-serif;
+  font-weight: 700; text-shadow: 0 1px 0 rgba(80, 40, 60, 0.25);
+}
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.top-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.icon-btn, .btn {
+  min-height: var(--tap); border-radius: 14px; padding: 0 16px; font-weight: 750;
+  background: rgba(255, 253, 248, 0.88); color: var(--felt);
+}
+.btn { width: 100%; font-size: 18px; font-family: "Baloo 2", system-ui, sans-serif; }
+.btn-primary { background: var(--felt); color: var(--gold-2); }
+.btn-ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--cream-3); }
+.btn-gold { background: var(--gold-2); color: #3a2c08; }
+.icon-btn.danger, .btn-danger { color: var(--berry); }
+.panel {
+  background: var(--cream); border-radius: 22px; box-shadow: var(--shadow);
+  border: 1px solid rgba(255, 253, 248, 0.7); padding: 16px;
+}
+.setup-wrap, .results-wrap { max-width: 720px; margin: 0 auto; }
+.hero { text-align: center; color: #fffdf8; margin: 4px 0 12px; text-shadow: 0 1px 0 rgba(80, 40, 60, 0.25); }
+.hero h1 { margin: 0 0 4px; font-size: clamp(40px, 8vw, 60px); line-height: 1; }
+.hero p { margin: 0; font-size: 18px; }
+.label { display: block; margin: 14px 0 8px; font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+.count-row, .choice-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.step-btn, .choice, .mini {
+  min-width: var(--tap); min-height: var(--tap); border-radius: 14px; background: var(--white);
+  border: 1.5px solid var(--cream-3); font-weight: 800; font-size: 18px;
+}
+.step-btn { background: var(--felt); color: var(--gold-2); font-size: 28px; }
+.step-value { min-width: 36px; text-align: center; font-family: "Baloo 2", system-ui, sans-serif; font-size: 32px; }
+.choice.on, .mini.on { background: var(--felt); color: var(--gold-2); border-color: var(--felt); }
+.names { display: grid; gap: 8px; }
+.name-row { display: grid; grid-template-columns: 92px 1fr; gap: 8px; align-items: center; }
+.name-row span { font-weight: 800; color: var(--ink-soft); }
+input[type="text"], input[type="number"] {
+  width: 100%; min-height: var(--tap); border-radius: 14px; border: 1.5px solid var(--cream-3);
+  background: var(--white); padding: 0 12px; font-size: 18px; color: var(--ink);
+}
+.help { margin: 8px 0 0; color: var(--ink-soft); font-size: 15px; }
+.setup-actions, .action-buttons { display: grid; gap: 8px; margin-top: 14px; }
+.brand { display: flex; align-items: center; gap: 8px; color: #fffdf8; text-shadow: 0 1px 0 rgba(80, 40, 60, 0.25); }
+.brand h1 { margin: 0; font-size: 28px; }
+.banner, .totals { margin-bottom: 10px; }
+.banner {
+  background: rgba(255, 253, 248, 0.92); border-radius: 18px; padding: 12px 14px;
+}
+.banner .kicker { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-deep); }
+.banner h2 { margin: 2px 0; font-size: 26px; }
+.banner p { margin: 0; color: var(--ink-soft); }
+.totals { display: flex; gap: 8px; overflow-x: auto; }
+.chip {
+  min-width: 140px; background: var(--cream); border-radius: 16px; padding: 10px 12px;
+  border: 1px solid var(--cream-3);
+}
+.chip b { display: block; font-size: 15px; }
+.chip .cs { font-family: "Baloo 2", system-ui, sans-serif; font-size: 32px; line-height: 1; }
+.chip.leader { background: #fff6d4; border-color: var(--gold); }
+.game-grid { display: grid; gap: 12px; }
+.side-block, .player-line, .round-row {
+  background: var(--white); border: 1px solid var(--cream-3); border-radius: 16px; padding: 10px; margin-bottom: 8px;
+}
+.side-head, .player-line, .round-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.stepper { display: flex; align-items: center; gap: 6px; }
+.stepper input { width: 72px; text-align: center; }
+.most { display: flex; gap: 6px; flex-wrap: wrap; }
+.lock { color: var(--berry); font-weight: 800; font-size: 14px; }
+.final-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-weight: 700; }
+.final-badge {
+  display: inline-block; background: var(--berry); color: white; border-radius: 999px;
+  padding: 4px 10px; font-size: 14px; font-weight: 800;
+}
+.sum { margin: 8px 0; padding: 10px 12px; border-radius: 12px; font-weight: 800; background: var(--cream-2); }
+.sum.ok { background: var(--good-bg); color: var(--good); }
+.sum.bad { background: var(--bad-bg); color: var(--berry); }
+.note {
+  margin: 8px 0; padding: 10px 12px; border-radius: 12px; background: #fff6d4; color: #5c4810; font-weight: 700;
+}
+.round-row { width: 100%; text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.game-grid { align-items: start; }
+.round-row .pts { font-variant-numeric: tabular-nums; font-weight: 800; }
+.dealer-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--gold);
+  box-shadow: 0 0 0 2px var(--gold-2); margin-right: 6px;
+}
+.results-card { text-align: center; }
+.trophy { font-size: 42px; color: var(--gold-deep); }
+.winner-name { font-family: "Baloo 2", system-ui, sans-serif; font-size: 34px; margin: 0; color: var(--gold-deep); }
+.rank-list { list-style: none; margin: 12px 0; padding: 0; text-align: left; }
+.rank-list li, .match-item, .player-item {
+  display: flex; justify-content: space-between; gap: 8px; align-items: center;
+  background: var(--white); border: 1px solid var(--cream-3); border-radius: 14px; padding: 12px; margin-bottom: 8px;
+  width: 100%; text-align: left;
+}
+.rank-list li.first { background: #fff6d4; border-color: var(--gold-2); }
+.modal-backdrop {
+  display: none; position: fixed; inset: 0; z-index: 30; background: rgba(40, 20, 40, 0.45);
+  padding: 20px 14px; overflow: auto;
+}
+.modal-backdrop.open { display: flex; align-items: flex-end; justify-content: center; }
+.modal { width: min(520px, 100%); background: var(--cream); border-radius: 22px; padding: 18px; margin-bottom: 8px; }
+.modal h2 { font-family: "Baloo 2", system-ui, sans-serif; margin: 0 0 8px; }
+.modal p { margin: 0 0 8px; line-height: 1.4; }
+.empty { color: var(--ink-soft); }
+@media (min-width: 900px) {
+  .modal-backdrop.open { align-items: center; }
+  .game-grid { grid-template-columns: 1.05fr 0.95fr; align-items: start; }
+  .names { grid-template-columns: 1fr 1fr; }
+}

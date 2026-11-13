@@ -11,6 +11,13 @@ window.BOKI_GAMES = [
     icon: "icons/riki.svg",
   },
   {
+    name: "Boki Tablice",
+    description: "Scorekeeper for the Serbian card game.",
+    href: "tablice/",
+    leaderboard: "leaderboards/tablice.html",
+    icon: "icons/tablice.svg",
+  },
+  {
     name: "Boki Chess",
     description: "Pass-and-play chess for two, with hints.",
     href: "chess/",

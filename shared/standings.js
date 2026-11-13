@@ -24,6 +24,38 @@ export function rikiStandings(matches) {
     .sort((a, b) => b.wins - a.wins || b.avg - a.avg || a.name.localeCompare(b.name));
 }
 
+/** Tablice: wins, then win rate, then average points per round. Pair wins count for both partners. */
+export function tabliceStandings(matches) {
+  const map = new Map();
+  for (const match of matches || []) {
+    if (!match || match.void || !Array.isArray(match.players)) continue;
+    const rounds = Array.isArray(match.rounds) ? match.rounds : [];
+    const sides = Array.isArray(match.sides) ? match.sides : [];
+    match.players.forEach((player, index) => {
+      const name = normaliseName(player && player.name != null ? player.name : player);
+      const key = nameKey(name);
+      if (!key) return;
+      if (!map.has(key)) map.set(key, { name, wins: 0, games: 0, points: 0, rounds: 0, tablas: 0 });
+      const row = map.get(key);
+      row.games += 1;
+      const side = sides.findIndex((item) => (item.members || []).includes(index));
+      for (const round of rounds) {
+        row.rounds += 1;
+        if (side >= 0) row.points += Number(round.points && round.points[side]) || 0;
+        row.tablas += Number(round.tablas && round.tablas[index]) || 0;
+      }
+      if (player && player.id && (match.winnerIds || []).includes(player.id)) row.wins += 1;
+    });
+  }
+  return [...map.values()]
+    .map((row) => ({
+      ...row,
+      rate: row.games ? row.wins / row.games : 0,
+      avg: row.rounds ? row.points / row.rounds : 0,
+    }))
+    .sort((a, b) => b.wins - a.wins || b.rate - a.rate || b.avg - a.avg || a.name.localeCompare(b.name));
+}
+
 /** Chess: most wins, then best win rate. Draws count as games and not as wins. */
 export function chessStandings(results, seriesList) {
   const map = new Map();

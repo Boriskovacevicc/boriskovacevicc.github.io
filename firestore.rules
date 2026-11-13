@@ -97,6 +97,33 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /tabliceProfiles/{id} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && id == request.resource.data.id
+        && text(request.resource.data, 'id', 1, 80)
+        && text(request.resource.data, 'name', 1, 60)
+        && request.resource.data.keys().size() <= 12;
+      allow delete: if false;
+    }
+
+    match /tabliceMatches/{id} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && id == request.resource.data.id
+        && text(request.resource.data, 'id', 1, 80)
+        && request.resource.data.players is list
+        && request.resource.data.players.size() >= 2
+        && request.resource.data.players.size() <= 4
+        && request.resource.data.rounds is list
+        && request.resource.data.rounds.size() <= 80
+        && request.resource.data.target in [51, 101]
+        && request.resource.data.mode in ['pairs', 'solo']
+        && (!('void' in request.resource.data) || request.resource.data.void is bool)
+        && request.resource.data.keys().size() <= 18;
+      allow delete: if false;
+    }
+
     // Short-lived connection checks. The site deletes these itself.
     match /diagnostics/{id} {
       allow read, create, delete: if signedIn() && id.matches('^diag-[A-Za-z0-9_-]{1,40}$');

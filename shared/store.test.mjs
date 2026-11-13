@@ -7,7 +7,7 @@ globalThis.localStorage = {
 };
 
 const store = await import("./store.js");
-const { rikiStandings, chessStandings } = await import("./standings.js");
+const { rikiStandings, chessStandings, tabliceStandings } = await import("./standings.js");
 
 let failed = 0;
 const t = (name, cond, extra = "") => {
@@ -60,5 +60,24 @@ await store.recordChessResult({ id: "c3", white: "Mum", black: "Boris Kovacevic"
 const chessRanks = chessStandings(await store.listChessResults());
 t("chess ranks Boris first on wins", chessRanks[0].name === "Boris Kovacevic" && chessRanks[0].wins === 2, JSON.stringify(chessRanks));
 t("a draw is a game and not a win", chessRanks[0].games === 3 && chessRanks[1].wins === 0);
+
+const tablice = {
+  version: 1,
+  profiles: [{ id: "tb", name: "Boris Kovacevic" }, { id: "tm", name: "Mum" }],
+  matches: [{
+    id: "tab1",
+    players: [{ id: "tb", name: "Boris Kovacevic" }, { id: "tm", name: "Mum" }, { id: "ta", name: "Ana" }, { id: "tt", name: "Tata" }],
+    sides: [{ label: "Boris Kovacevic & Mum", members: [0, 1] }, { label: "Ana & Tata", members: [2, 3] }],
+    rounds: [{ cards: [12, 10], most: 0, tablas: [1, 0, 0, 0], points: [16, 10] }],
+    winnerIds: ["tb", "tm"],
+    void: false,
+  }],
+};
+await store.saveTablice(tablice);
+const loadedTablice = await store.loadTablice();
+t("Tablice save uses boki-tablice-v1", loadedTablice.matches[0].id === "tab1" && !!localStorage.getItem(store.STORE_KEYS.tablice));
+const table = tabliceStandings(loadedTablice.matches);
+t("a pairs win counts for both partners", table.find((row) => row.name === "Boris Kovacevic").wins === 1 && table.find((row) => row.name === "Mum").wins === 1 && table.find((row) => row.name === "Ana").wins === 0);
+t("tablas are counted per player", table.find((row) => row.name === "Boris Kovacevic").tablas === 1 && table.find((row) => row.name === "Mum").tablas === 0);
 
 if (failed) process.exit(1);
